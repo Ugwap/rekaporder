@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- SheetJS untuk manipulasi Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
@@ -16,7 +18,7 @@
 
         <!-- Panel Kontrol Utama -->
         <div class="card">
-            <h3>1. Pengaturan Periode & Template</h3>
+            <h3>1. Pengaturan Periode & Template Excel</h3>
             <div class="form-grid">
                 <div class="form-group">
                     <label for="selectBulan">Pilih Bulan Rekap:</label>
@@ -36,9 +38,9 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="fileTemplate">Upload Template Excel (Opsional):</label>
+                    <label for="fileTemplate">Upload Template Excel Master:</label>
                     <input type="file" id="fileTemplate" accept=".xlsx, .xls">
-                    <small>Jika tidak diupload, sistem akan men-generate file Excel otomatis.</small>
+                    <small>Upload file format Excel form rekap Anda.</small>
                 </div>
             </div>
         </div>
@@ -52,16 +54,9 @@
                     <input type="date" id="inputTanggal">
                 </div>
                 <div class="form-group">
-                    <label for="inputCabang">Nama Cabang / Toko:</label>
-                    <input type="text" id="inputCabang" list="listCabang" placeholder="Misal: RAWALUMBU">
-                    <datalist id="listCabang">
-                        <option value="RAWALUMBU">
-                        <option value="HARAPAN BARU">
-                        <option value="PEKAYON">
-                        <option value="BINTARA">
-                        <option value="BONTENG">
-                        <option value="CARINGIN 1">
-                    </datalist>
+                    <label for="inputCabang">Nama Toko / Cabang:</label>
+                    <input type="text" id="inputCabang" list="listCabang" placeholder="Ketik atau pilih toko...">
+                    <datalist id="listCabang"></datalist>
                 </div>
                 <div class="form-group">
                     <label for="inputNominal">Nominal / Jumlah:</label>
@@ -73,7 +68,7 @@
 
         <!-- Tabel Preview Data Masuk -->
         <div class="card">
-            <h3>3. Preview Data Masuk (Bulan Ini)</h3>
+            <h3>3. Preview Data Masuk</h3>
             <div class="table-responsive">
                 <table id="tabelPreview">
                     <thead>
