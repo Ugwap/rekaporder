@@ -16,19 +16,9 @@
             margin: 0;
             padding: 15px;
         }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        header h2 {
-            color: #2c3e50;
-            margin-bottom: 5px;
-            font-size: 1.4rem;
-        }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 20px; }
+        header h2 { color: #2c3e50; margin-bottom: 5px; font-size: 1.4rem; }
         .card {
             background: #ffffff;
             padding: 15px;
@@ -43,9 +33,7 @@
             border-bottom: 2px solid #ecf0f1;
             padding-bottom: 6px;
         }
-        .form-group {
-            margin-bottom: 12px;
-        }
+        .form-group { margin-bottom: 12px; }
         .form-group label {
             display: block;
             font-weight: 600;
@@ -74,28 +62,15 @@
         .btn-success:hover { background-color: #27ae60; }
         .btn-primary { background-color: #3498db; color: white; margin-top: 10px; }
         .btn-primary:hover { background-color: #2980b9; }
-        .table-responsive {
-            overflow-x: auto;
-            max-height: 350px;
-            overflow-y: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 5px;
-        }
+        .table-responsive { overflow-x: auto; max-height: 350px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
         th, td {
             border: 1px solid #e2e8f0;
             padding: 8px;
             text-align: left;
             font-size: 0.85rem;
         }
-        th {
-            background-color: #f8fafc;
-            color: #475569;
-            position: sticky;
-            top: 0;
-        }
+        th { background-color: #f8fafc; color: #475569; position: sticky; top: 0; }
         .badge {
             background: #e2e8f0;
             padding: 2px 6px;
@@ -103,6 +78,13 @@
             font-size: 0.75rem;
             color: #334155;
         }
+        #statusKoneksi {
+            font-size: 0.8rem;
+            margin-top: 6px;
+            display: block;
+        }
+        .status-ok { color: #16a085; }
+        .status-err { color: #e74c3c; }
     </style>
 </head>
 <body>
@@ -110,6 +92,7 @@
         <header>
             <h2>Villa Parfum</h2>
             <small>Input Rekap Order Bulanan Otomatis</small>
+            <small id="statusKoneksi">Menghubungkan ke database...</small>
         </header>
 
         <!-- Pengaturan Periode & Template -->
@@ -182,69 +165,94 @@
     </div>
 
     <script>
-        // Konfigurasi Supabase Anda
+        // ====== KONFIGURASI SUPABASE ======
         const SUPABASE_URL = 'https://vnwxknlpwjouzberzeju.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b'; // Masukkan publishable key Anda yang lengkap di sini
-        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b';
+
+        let _supabase = null;
+        try {
+            _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (err) {
+            console.error('Gagal membuat client Supabase:', err);
+        }
 
         let masterToko = [];
         let listDataRekap = [];
         let templateBuffer = null;
 
+        const elStatus = document.getElementById('statusKoneksi');
+
+        function setStatus(teks, ok) {
+            elStatus.textContent = teks;
+            elStatus.className = ok ? 'status-ok' : 'status-err';
+        }
+
         document.getElementById('inputTanggal').valueAsDate = new Date();
 
-        // Ambil data toko & regional dari Supabase (menyesuaikan nama kolom di database Anda)
+        // Ambil data toko & regional dari tabel TOKO.
+        // Utamakan kolom bernama nama_toko & regional; kalau belum
+        // diganti namanya, pakai urutan kolom 1 dan 2 sebagai cadangan.
         async function muatDataToko() {
+            if (!_supabase) {
+                setStatus('Client Supabase gagal dibuat. Cek URL dan key.', false);
+                return;
+            }
+            if (SUPABASE_ANON_KEY.startsWith('ISI_')) {
+                setStatus('Publishable key belum diisi di kode.', false);
+                return;
+            }
             try {
                 const { data, error } = await _supabase.from('TOKO').select('*');
                 if (error) throw error;
-                
-                // Petukaran kolom berdasarkan struktur tabel di Supabase Anda
-                // Kolom 1 = nama toko, Kolom 2 = regional
+
+                if (!data || data.length === 0) {
+                    setStatus('Terhubung, tapi tabel TOKO kosong. Cek RLS policy (select) di Supabase.', false);
+                    return;
+                }
+
                 masterToko = data.map(row => {
                     const keys = Object.keys(row);
-                    return {
-                        nama_toko: row[keys[0]],
-                        regional: row[keys[1]]
-                    };
-                });
+                    const nama = row.nama_toko !== undefined ? row.nama_toko : row[keys[0]];
+                    const reg = row.regional !== undefined ? row.regional : row[keys[1]];
+                    return { nama_toko: nama, regional: reg };
+                }).filter(t => t.nama_toko);
 
                 const datalist = document.getElementById('listMasterToko');
                 datalist.innerHTML = '';
-
                 masterToko.forEach(toko => {
-                    if (toko.nama_toko) {
-                        const option = document.createElement('option');
-                        option.value = toko.nama_toko;
-                        option.label = `Regional: ${toko.regional}`;
-                        datalist.appendChild(option);
-                    }
+                    const option = document.createElement('option');
+                    option.value = toko.nama_toko;
+                    option.label = `Regional: ${toko.regional}`;
+                    datalist.appendChild(option);
                 });
+
+                setStatus(`✔ Terhubung. ${masterToko.length} toko dimuat.`, true);
             } catch (err) {
                 console.error('Gagal memuat toko:', err);
-                alert('Gagal memuat data toko dari Supabase.');
+                setStatus('Gagal memuat toko: ' + (err.message || err), false);
+                alert('Gagal memuat toko: ' + (err.message || err));
             }
         }
 
         muatDataToko();
 
+        function cariToko(nama) {
+            const val = nama.trim().toUpperCase();
+            return masterToko.find(t => String(t.nama_toko).trim().toUpperCase() === val);
+        }
+
         document.getElementById('inputCariToko').addEventListener('input', function(e) {
-            const val = e.target.value.trim().toUpperCase();
-            const matched = masterToko.find(t => t.nama_toko && t.nama_toko.toUpperCase() === val);
+            const matched = cariToko(e.target.value);
             const info = document.getElementById('infoRegional');
-            if (matched) {
-                info.textContent = `✔ Regional terdeteksi: ${matched.regional}`;
-            } else {
-                info.textContent = '';
-            }
+            info.textContent = matched ? `✔ Regional terdeteksi: ${matched.regional}` : '';
         });
 
         document.getElementById('fileTemplate').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
-                templateBuffer = new Uint8Array(e.target.result);
+            reader.onload = function(ev) {
+                templateBuffer = new Uint8Array(ev.target.result);
                 alert('Template Excel berhasil dimuat!');
             };
             reader.readAsArrayBuffer(file);
@@ -252,15 +260,15 @@
 
         document.getElementById('btnTambahItem').addEventListener('click', function() {
             const tanggal = document.getElementById('inputTanggal').value;
-            const namaTokoInput = document.getElementById('inputCariToko').value.trim();
+            const namaTokoInput = document.getElementById('inputCariToko').value;
             const nominal = parseFloat(document.getElementById('inputNominalSingle').value);
 
-            if (!tanggal || !namaTokoInput || isNaN(nominal) || nominal <= 0) {
+            if (!tanggal || !namaTokoInput.trim() || isNaN(nominal) || nominal <= 0) {
                 alert('Mohon lengkapi Tanggal, pilih Toko dari dropdown, dan masukkan Nominal!');
                 return;
             }
 
-            const tokoData = masterToko.find(t => t.nama_toko && t.nama_toko.toUpperCase() === namaTokoInput.toUpperCase());
+            const tokoData = cariToko(namaTokoInput);
             if (!tokoData) {
                 alert('Nama toko tidak ditemukan di database! Pastikan memilih dari opsi dropdown.');
                 return;
@@ -280,6 +288,12 @@
             document.getElementById('infoRegional').textContent = '';
         });
 
+        function esc(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
         function renderTabelPreview() {
             const tbody = document.querySelector('#tabelPreview tbody');
             tbody.innerHTML = '';
@@ -292,9 +306,9 @@
             listDataRekap.forEach((item, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${item.tanggal}</td>
-                    <td><strong>${item.cabang}</strong></td>
-                    <td><span class="badge">${item.regional}</span></td>
+                    <td>${esc(item.tanggal)}</td>
+                    <td><strong>${esc(item.cabang)}</strong></td>
+                    <td><span class="badge">${esc(item.regional)}</span></td>
                     <td>Rp ${item.nominal.toLocaleString('id-ID')}</td>
                     <td><button onclick="hapusPreview(${index})" style="background:#e74c3c; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer;">Hapus</button></td>
                 `;
@@ -328,37 +342,72 @@
                 const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
 
-                listDataRekap.forEach(item => {
-                    let tglObj = new Date(item.tanggal);
-                    if (tglObj.getMonth() === bulanIndex) {
-                        let hari = tglObj.getDate(); 
-                        let targetBaris = 4 + hari; 
-                        
-                        let colIndex = -1;
-                        let c = 1;
-                        while (true) {
-                            let cellAddress = XLSX.utils.encode_cell({ r: 3, c: c });
-                            let cell = worksheet[cellAddress];
-                            if (!cell) break;
-                            if (cell.v.toString().trim().toUpperCase() === item.cabang.toUpperCase()) {
-                                colIndex = c;
-                                break;
-                            }
-                            c++;
-                        }
+                let berhasil = 0;
+                let dilewati = [];
 
-                        if (colIndex !== -1) {
-                            let targetCell = XLSX.utils.encode_cell({ r: targetBaris - 1, c: colIndex });
-                            let nilaiSebelumnya = worksheet[targetCell] ? Number(worksheet[targetCell].v) || 0 : 0;
-                            XLSX.utils.sheet_add_aoa(worksheet, [[nilaiSebelumnya + item.nominal]], { origin: targetCell });
+                listDataRekap.forEach(item => {
+                    // Parse manual (YYYY-MM-DD) agar tidak terpengaruh zona waktu
+                    const [thn, bln, hari] = item.tanggal.split('-').map(Number);
+                    if (bln - 1 !== bulanIndex) {
+                        dilewati.push(`${item.cabang} (${item.tanggal}): beda bulan`);
+                        return;
+                    }
+
+                    const rowIdx = 3 + hari; // baris Excel 5 untuk tanggal 1 (index 0-based)
+
+                    // Cari kolom cabang di baris header (baris 4 Excel)
+                    let colIndex = -1;
+                    for (let c = 1; c < 500; c++) {
+                        const cell = worksheet[XLSX.utils.encode_cell({ r: 3, c: c })];
+                        if (!cell || cell.v === undefined) {
+                            // beri toleransi sel kosong tunggal; berhenti jika 3 kosong berturut-turut
+                            const next1 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 1 })];
+                            const next2 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 2 })];
+                            if (!next1 && !next2) break;
+                            continue;
+                        }
+                        if (String(cell.v).trim().toUpperCase() === item.cabang.trim().toUpperCase()) {
+                            colIndex = c;
+                            break;
                         }
                     }
+
+                    if (colIndex === -1) {
+                        dilewati.push(`${item.cabang}: kolom tidak ada di template`);
+                        return;
+                    }
+
+                    const addr = XLSX.utils.encode_cell({ r: rowIdx, c: colIndex });
+                    const sel = worksheet[addr];
+                    const nilaiSebelumnya = sel ? (Number(sel.v) || 0) : 0;
+
+                    // Ubah nilai tanpa menghapus format sel di template
+                    const barisBaru = sel || {};
+                    barisBaru.t = 'n';
+                    barisBaru.v = nilaiSebelumnya + item.nominal;
+                    delete barisBaru.f;
+                    delete barisBaru.w;
+                    worksheet[addr] = barisBaru;
+
+                    // Perluas range sheet bila perlu
+                    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+                    if (rowIdx > range.e.r) range.e.r = rowIdx;
+                    if (colIndex > range.e.c) range.e.c = colIndex;
+                    worksheet['!ref'] = XLSX.utils.encode_range(range);
+
+                    berhasil++;
                 });
 
                 XLSX.writeFile(workbook, `Rekap_Order_${namaBulan}_${tahunAktif}.xlsx`);
+
+                let pesan = `${berhasil} data berhasil dimasukkan ke Excel.`;
+                if (dilewati.length) {
+                    pesan += `\n\nDilewati (${dilewati.length}):\n- ` + dilewati.join('\n- ');
+                }
+                alert(pesan);
             } catch (err) {
                 console.error(err);
-                alert('Terjadi kesalahan saat memproses file Excel.');
+                alert('Terjadi kesalahan saat memproses file Excel: ' + err.message);
             }
         });
     </script>
