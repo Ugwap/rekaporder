@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rekap Order Bulanan</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- SheetJS untuk manipulasi Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Rekap Data Order Bulanan</h2>
+        
+        <div class="form-group">
+            <label for="bulan">Pilih Bulan:</label>
+            <input type="month" id="bulan" required>
+        </div>
+
+        <div class="form-group">
+            <label for="fileTemplate">Upload Template Excel Form:</label>
+            <input type="file" id="fileTemplate" accept=".xlsx, .xls">
+        </div>
+
+        <div class="input-data-section">
+            <h3>Masukkan Data Harian / Transaksi</h3>
+            <div class="row">
+                <input type="date" id="tgl">
+                <input type="text" id="namaPelanggan" placeholder="Nama Pelanggan">
+                <input type="number" id="jumlah" placeholder="Jumlah">
+                <button type="button" id="btnTambah">Tambah Data</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="tabelData">
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Nama Pelanggan</th>
+                        <th>Jumlah</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Baris data akan masuk secara dinamis -->
+                </tbody>
+            </table>
+        </div>
+
+        <button type="button" id="btnExport" class="btn-primary">Download Rekap Excel</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
