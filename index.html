@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Rekap Order Bulanan - Villa Parfum</title>
+    <title>Rekap Order Bulanan - Villa Parfum</title>
     <!-- SheetJS untuk manipulasi Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <!-- Supabase Client -->
@@ -11,13 +11,13 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            background-color: #f4f6f9;
             color: #333;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
         }
         .container {
-            max-width: 900px;
+            max-width: 800px;
             margin: 0 auto;
         }
         header {
@@ -26,212 +26,211 @@
         }
         header h2 {
             color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 1.4rem;
         }
         .card {
             background: #ffffff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
         }
         .card h3 {
             margin-top: 0;
-            font-size: 1.1rem;
+            font-size: 1rem;
             color: #16a085;
             border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 8px;
-        }
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
+            padding-bottom: 6px;
         }
         .form-group {
-            display: flex;
-            flex-direction: column;
+            margin-bottom: 12px;
         }
         .form-group label {
+            display: block;
             font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 5px;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            color: #475569;
         }
         .form-group input, .form-group select {
-            padding: 8px 12px;
+            width: 100%;
+            padding: 8px 10px;
             border: 1px solid #cbd5e1;
             border-radius: 4px;
-            font-size: 0.95rem;
-        }
-        .form-group small {
-            color: #64748b;
-            font-size: 0.75rem;
-            margin-top: 4px;
+            font-size: 0.9rem;
+            box-sizing: border-box;
         }
         .btn {
-            padding: 10px 20px;
+            padding: 10px 15px;
             border: none;
             border-radius: 4px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 0.95rem;
-        }
-        .btn-success {
-            background-color: #2ecc71;
-            color: white;
-        }
-        .btn-success:hover { background-color: #27ae60; }
-        .btn-primary {
-            background-color: #3498db;
-            color: white;
-        }
-        .btn-primary:hover { background-color: #2980b9; }
-        .btn-block {
+            font-size: 0.9rem;
             width: 100%;
-            padding: 14px;
-            font-size: 1.1rem;
         }
+        .btn-success { background-color: #2ecc71; color: white; margin-top: 10px; }
+        .btn-success:hover { background-color: #27ae60; }
+        .btn-primary { background-color: #3498db; color: white; margin-top: 10px; }
+        .btn-primary:hover { background-color: #2980b9; }
         .table-responsive {
             overflow-x: auto;
+            max-height: 350px;
+            overflow-y: auto;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 5px;
         }
         th, td {
             border: 1px solid #e2e8f0;
-            padding: 10px;
+            padding: 8px;
             text-align: left;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         th {
             background-color: #f8fafc;
             color: #475569;
+            position: sticky;
+            top: 0;
         }
-        .btn-danger {
-            background-color: #e74c3c;
-            color: white;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
+        .badge {
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: #334155;
         }
-        .btn-danger:hover { background-color: #c0392b; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h2>Villa Parfum - Rekap Permintaan Barang Bulanan</h2>
+            <h2>Villa Parfum</h2>
+            <small>Input Rekap Order Bulanan Otomatis</small>
         </header>
 
-        <!-- Panel Kontrol Utama -->
+        <!-- Pengaturan Periode & Template -->
         <div class="card">
-            <h3>1. Pengaturan Periode & Template Excel</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="selectBulan">Pilih Bulan Rekap:</label>
-                    <select id="selectBulan">
-                        <option value="0">Januari</option>
-                        <option value="1">Februari</option>
-                        <option value="2">Maret</option>
-                        <option value="3">April</option>
-                        <option value="4">Mei</option>
-                        <option value="5">Juni</option>
-                        <option value="6">Juli</option>
-                        <option value="7">Agustus</option>
-                        <option value="8">September</option>
-                        <option value="9" selected>Oktober</option>
-                        <option value="10">November</option>
-                        <option value="11">Desember</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="fileTemplate">Upload Template Excel Master:</label>
-                    <input type="file" id="fileTemplate" accept=".xlsx, .xls">
-                    <small>Upload file format Excel form rekap Anda.</small>
-                </div>
+            <h3>1. Periode & Template</h3>
+            <div class="form-group">
+                <label for="selectBulan">Pilih Bulan Rekap:</label>
+                <select id="selectBulan">
+                    <option value="0">Januari</option>
+                    <option value="1">Februari</option>
+                    <option value="2">Maret</option>
+                    <option value="3">April</option>
+                    <option value="4">Mei</option>
+                    <option value="5">Juni</option>
+                    <option value="6">Juli</option>
+                    <option value="7">Agustus</option>
+                    <option value="8">September</option>
+                    <option value="9" selected>Oktober</option>
+                    <option value="10">November</option>
+                    <option value="11">Desember</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="inputTanggal">Tanggal Transaksi:</label>
+                <input type="date" id="inputTanggal">
+            </div>
+            <div class="form-group">
+                <label for="fileTemplate">Upload Template Excel Master:</label>
+                <input type="file" id="fileTemplate" accept=".xlsx, .xls">
             </div>
         </div>
 
-        <!-- Panel Input Data -->
+        <!-- Form Input Cepat per Transaksi dengan Dropdown Otomatis -->
         <div class="card">
-            <h3>2. Input Data Order / Permintaan</h3>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label for="inputTanggal">Tanggal:</label>
-                    <input type="date" id="inputTanggal">
-                </div>
-                <div class="form-group">
-                    <label for="inputCabang">Nama Toko / Cabang:</label>
-                    <input type="text" id="inputCabang" list="listCabang" placeholder="Ketik atau pilih toko...">
-                    <datalist id="listCabang"></datalist>
-                </div>
-                <div class="form-group">
-                    <label for="inputNominal">Nominal / Jumlah:</label>
-                    <input type="number" id="inputNominal" placeholder="0">
-                </div>
+            <h3>2. Input Transaksi Toko</h3>
+            <div class="form-group">
+                <label for="inputCariToko">Cari / Pilih Nama Toko / Cabang:</label>
+                <input type="text" id="inputCariToko" list="listMasterToko" placeholder="Ketik misal: meka...">
+                <datalist id="listMasterToko"></datalist>
+                <small id="infoRegional" style="color: #16a085; font-weight: 600; display: block; margin-top: 4px;"></small>
             </div>
-            <button type="button" id="btnTambah" class="btn btn-success">Tambah ke Rekap</button>
+            <div class="form-group">
+                <label for="inputNominalSingle">Nominal / Jumlah (Rp):</label>
+                <input type="number" id="inputNominalSingle" placeholder="0">
+            </div>
+            <button type="button" id="btnTambahItem" class="btn btn-success">Tambah ke Daftar</button>
         </div>
 
-        <!-- Tabel Preview Data Masuk -->
+        <!-- Daftar Data yang Sudah Masuk -->
         <div class="card">
-            <h3>3. Preview Data Masuk</h3>
+            <h3>3. Preview Data Tersimpan</h3>
             <div class="table-responsive">
                 <table id="tabelPreview">
                     <thead>
                         <tr>
                             <th>Tanggal</th>
-                            <th>Cabang / Toko</th>
+                            <th>Toko</th>
+                            <th>Regional</th>
                             <th>Nominal</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Data dinamis masuk sini -->
+                        <tr><td colspan="5" style="text-align: center;">Belum ada data ditambahkan.</td></tr>
                     </tbody>
                 </table>
             </div>
+            <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Excel Bulanan</button>
         </div>
-
-        <button type="button" id="btnExport" class="btn btn-primary btn-block">Download Rekap Excel</button>
     </div>
 
     <script>
-        // Konfigurasi Koneksi Supabase (Sesuaikan URL dan Key Anda)
-        const SUPABASE_URL = 'https://vnvxknlpwjquzbmrzaju.supabase.co';
+        // Konfigurasi Supabase Anda (Ganti dengan URL & Key Anda)
+        const SUPABASE_URL = 'https://YOUR_SUPABASE_PROJECT_ID.supabase.co';
         const SUPABASE_ANON_KEY = 'https://vnvxknlpwjquzbmrzaju.supabase.co/rest/v1/';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        let daftarData = [];
-        let templateBuffer = null;
         let masterToko = [];
+        let listDataRekap = [];
+        let templateBuffer = null;
 
-        // Ambil data toko & regional dari Supabase
+        // Set tanggal default hari ini
+        document.getElementById('inputTanggal').valueAsDate = new Date();
+
+        // Ambil data toko & regional dari Supabase untuk Datalist
         async function muatDataToko() {
             try {
-                const { data, error } = await _supabase.from('toko').select('*');
+                const { data, error } = await _supabase.from('toko').select('*').order('nama_toko', { ascending: true });
                 if (error) throw error;
                 
                 masterToko = data;
-                const datalist = document.getElementById('listCabang');
+                const datalist = document.getElementById('listMasterToko');
                 datalist.innerHTML = '';
-                
-                masterToko.forEach(item => {
+
+                masterToko.forEach(toko => {
                     const option = document.createElement('option');
-                    option.value = item.nama_toko;
-                    option.label = `Regional: ${item.regional}`;
+                    option.value = toko.nama_toko;
+                    option.label = `Regional: ${toko.regional}`;
                     datalist.appendChild(option);
                 });
             } catch (err) {
-                console.error('Gagal memuat data toko dari Supabase:', err);
+                console.error('Gagal memuat toko:', err);
+                alert('Gagal memuat data toko dari Supabase.');
             }
         }
 
         muatDataToko();
 
-        // Baca file template Excel yang diupload user
+        // Deteksi pilihan toko untuk memunculkan info regional secara real-time
+        document.getElementById('inputCariToko').addEventListener('input', function(e) {
+            const val = e.target.value.trim().toUpperCase();
+            const matched = masterToko.find(t => t.nama_toko.toUpperCase() === val);
+            const info = document.getElementById('infoRegional');
+            if (matched) {
+                info.textContent = `✔ Regional terdeteksi: ${matched.regional}`;
+            } else {
+                info.textContent = '';
+            }
+        });
+
+        // Baca file template Excel
         document.getElementById('fileTemplate').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -243,49 +242,70 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // Tombol tambah data
-        document.getElementById('btnTambah').addEventListener('click', function() {
+        // Tombol tambah item transaksi
+        document.getElementById('btnTambahItem').addEventListener('click', function() {
             const tanggal = document.getElementById('inputTanggal').value;
-            let cabang = document.getElementById('inputCabang').value.trim();
-            const nominal = parseFloat(document.getElementById('inputNominal').value);
+            const namaTokoInput = document.getElementById('inputCariToko').value.trim();
+            const nominal = parseFloat(document.getElementById('inputNominalSingle').value);
 
-            if (!tanggal || !cabang || isNaN(nominal)) {
-                alert('Mohon lengkapi Tanggal, Nama Cabang, dan Nominal dengan benar!');
+            if (!tanggal || !namaTokoInput || isNaN(nominal) || nominal <= 0) {
+                alert('Mohon lengkapi Tanggal, pilih Toko yang valid dari dropdown, dan masukkan Nominal!');
                 return;
             }
 
-            daftarData.push({ tanggal, cabang, nominal });
+            // Validasi apakah toko ada di database master
+            const tokoData = masterToko.find(t => t.nama_toko.toUpperCase() === namaTokoInput.toUpperCase());
+            if (!tokoData) {
+                alert('Nama toko tidak ditemukan di database! Pastikan memilih dari opsi dropdown yang muncul.');
+                return;
+            }
+
+            listDataRekap.push({
+                tanggal: tanggal,
+                cabang: tokoData.nama_toko,
+                regional: tokoData.regional,
+                nominal: nominal
+            });
+
             renderTabelPreview();
 
-            document.getElementById('inputNominal').value = '';
-            document.getElementById('inputCabang').value = '';
+            // Reset input form toko & nominal saja
+            document.getElementById('inputCariToko').value = '';
+            document.getElementById('inputNominalSingle').value = '';
+            document.getElementById('infoRegional').textContent = '';
         });
 
         function renderTabelPreview() {
             const tbody = document.querySelector('#tabelPreview tbody');
             tbody.innerHTML = '';
 
-            daftarData.forEach((item, index) => {
+            if (listDataRekap.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Belum ada data ditambahkan.</td></tr>';
+                return;
+            }
+
+            listDataRekap.forEach((item, index) => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${item.tanggal}</td>
-                    <td>${item.cabang}</td>
+                    <td><strong>${item.cabang}</strong></td>
+                    <td><span class="badge">${item.regional}</span></td>
                     <td>Rp ${item.nominal.toLocaleString('id-ID')}</td>
-                    <td><button class="btn-danger" onclick="hapusData(${index})">Hapus</button></td>
+                    <td><button onclick="hapusPreview(${index})" style="background:#e74c3c; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer;">Hapus</button></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function hapusData(index) {
-            daftarData.splice(index, 1);
+        function hapusPreview(index) {
+            listDataRekap.splice(index, 1);
             renderTabelPreview();
         }
 
-        // Proses Ekspor ke Excel berdasarkan Template
+        // Export ke Excel Template
         document.getElementById('btnExport').addEventListener('click', function() {
-            if (daftarData.length === 0) {
-                alert('Belum ada data yang dimasukkan!');
+            if (listDataRekap.length === 0) {
+                alert('Belum ada data rekap yang dimasukkan!');
                 return;
             }
 
@@ -304,12 +324,11 @@
                 const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
 
-                // Petakan data input ke sel matriks excel berdasarkan template
-                daftarData.forEach(item => {
+                listDataRekap.echo ? null : listDataRekap.forEach(item => {
                     let tglObj = new Date(item.tanggal);
                     if (tglObj.getMonth() === bulanIndex) {
-                        let hari = tglObj.getDate(); // 1 sampai 31
-                        let targetBaris = 4 + hari; // Sesuaikan baris tanggal di template Anda
+                        let hari = tglObj.getDate(); 
+                        let targetBaris = 4 + hari; 
                         
                         let colIndex = -1;
                         let c = 1;
