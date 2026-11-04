@@ -142,12 +142,12 @@
             </div>
         </div>
 
-        <!-- Form Input Cepat per Transaksi dengan Dropdown Otomatis -->
+        <!-- Form Input Transaksi -->
         <div class="card">
             <h3>2. Input Transaksi Toko</h3>
             <div class="form-group">
                 <label for="inputCariToko">Cari / Pilih Nama Toko / Cabang:</label>
-                <input type="text" id="inputCariToko" list="listMasterToko" placeholder="Ketik misal: meka...">
+                <input type="text" id="inputCariToko" list="listMasterToko" placeholder="Ketik misal: Anyer atau Pekayon...">
                 <datalist id="listMasterToko"></datalist>
                 <small id="infoRegional" style="color: #16a085; font-weight: 600; display: block; margin-top: 4px;"></small>
             </div>
@@ -182,33 +182,43 @@
     </div>
 
     <script>
-        // Konfigurasi Supabase Anda (Ganti dengan URL & Key Anda)
-        const SUPABASE_URL = 'https://vnvxknlpwjquzbmrzaju.supabase.co';
-        const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b';
+        // Konfigurasi Supabase Anda
+        const SUPABASE_URL = 'https://vnwxknlpwjouzberzeju.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b'; // Masukkan publishable key Anda yang lengkap di sini
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let masterToko = [];
         let listDataRekap = [];
         let templateBuffer = null;
 
-        // Set tanggal default hari ini
         document.getElementById('inputTanggal').valueAsDate = new Date();
 
-        // Ambil data toko & regional dari Supabase untuk Datalist
+        // Ambil data toko & regional dari Supabase (menyesuaikan nama kolom di database Anda)
         async function muatDataToko() {
             try {
-                const { data, error } = await _supabase.from('toko').select('*').order('nama_toko', { ascending: true });
+                const { data, error } = await _supabase.from('TOKO').select('*');
                 if (error) throw error;
                 
-                masterToko = data;
+                // Petukaran kolom berdasarkan struktur tabel di Supabase Anda
+                // Kolom 1 = nama toko, Kolom 2 = regional
+                masterToko = data.map(row => {
+                    const keys = Object.keys(row);
+                    return {
+                        nama_toko: row[keys[0]],
+                        regional: row[keys[1]]
+                    };
+                });
+
                 const datalist = document.getElementById('listMasterToko');
                 datalist.innerHTML = '';
 
                 masterToko.forEach(toko => {
-                    const option = document.createElement('option');
-                    option.value = toko.nama_toko;
-                    option.label = `Regional: ${toko.regional}`;
-                    datalist.appendChild(option);
+                    if (toko.nama_toko) {
+                        const option = document.createElement('option');
+                        option.value = toko.nama_toko;
+                        option.label = `Regional: ${toko.regional}`;
+                        datalist.appendChild(option);
+                    }
                 });
             } catch (err) {
                 console.error('Gagal memuat toko:', err);
@@ -218,10 +228,9 @@
 
         muatDataToko();
 
-        // Deteksi pilihan toko untuk memunculkan info regional secara real-time
         document.getElementById('inputCariToko').addEventListener('input', function(e) {
             const val = e.target.value.trim().toUpperCase();
-            const matched = masterToko.find(t => t.nama_toko.toUpperCase() === val);
+            const matched = masterToko.find(t => t.nama_toko && t.nama_toko.toUpperCase() === val);
             const info = document.getElementById('infoRegional');
             if (matched) {
                 info.textContent = `✔ Regional terdeteksi: ${matched.regional}`;
@@ -230,7 +239,6 @@
             }
         });
 
-        // Baca file template Excel
         document.getElementById('fileTemplate').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -242,21 +250,19 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // Tombol tambah item transaksi
         document.getElementById('btnTambahItem').addEventListener('click', function() {
             const tanggal = document.getElementById('inputTanggal').value;
             const namaTokoInput = document.getElementById('inputCariToko').value.trim();
             const nominal = parseFloat(document.getElementById('inputNominalSingle').value);
 
             if (!tanggal || !namaTokoInput || isNaN(nominal) || nominal <= 0) {
-                alert('Mohon lengkapi Tanggal, pilih Toko yang valid dari dropdown, dan masukkan Nominal!');
+                alert('Mohon lengkapi Tanggal, pilih Toko dari dropdown, dan masukkan Nominal!');
                 return;
             }
 
-            // Validasi apakah toko ada di database master
-            const tokoData = masterToko.find(t => t.nama_toko.toUpperCase() === namaTokoInput.toUpperCase());
+            const tokoData = masterToko.find(t => t.nama_toko && t.nama_toko.toUpperCase() === namaTokoInput.toUpperCase());
             if (!tokoData) {
-                alert('Nama toko tidak ditemukan di database! Pastikan memilih dari opsi dropdown yang muncul.');
+                alert('Nama toko tidak ditemukan di database! Pastikan memilih dari opsi dropdown.');
                 return;
             }
 
@@ -269,7 +275,6 @@
 
             renderTabelPreview();
 
-            // Reset input form toko & nominal saja
             document.getElementById('inputCariToko').value = '';
             document.getElementById('inputNominalSingle').value = '';
             document.getElementById('infoRegional').textContent = '';
@@ -302,7 +307,6 @@
             renderTabelPreview();
         }
 
-        // Export ke Excel Template
         document.getElementById('btnExport').addEventListener('click', function() {
             if (listDataRekap.length === 0) {
                 alert('Belum ada data rekap yang dimasukkan!');
@@ -324,7 +328,7 @@
                 const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
 
-                listDataRekap.echo ? null : listDataRekap.forEach(item => {
+                listDataRekap.forEach(item => {
                     let tglObj = new Date(item.tanggal);
                     if (tglObj.getMonth() === bulanIndex) {
                         let hari = tglObj.getDate(); 
