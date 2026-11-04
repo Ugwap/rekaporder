@@ -1,94 +1,148 @@
-let listData = [];
-let templateFileBuffer = null;
+let daftarData = [];
+let templateBuffer = null;
 
-// Membaca file template excel yang diupload user
+// Daftar nama cabang default sesuai contoh gambar Anda
+const daftarCabangDefault = ["RAWALUMBU", "HARAPAN BARU", "PEKAYON", "BINTARA", "BONTENG", "CARINGIN 1"];
+
+// Baca file template jika diupload user
 document.getElementById('fileTemplate').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = function(e) {
-        templateFileBuffer = new Uint8Array(e.target.result);
+        templateBuffer = new Uint8Array(e.target.result);
+        alert('Template Excel berhasil dimuat!');
     };
     reader.readAsArrayBuffer(file);
 });
 
-// Tambah data ke tabel sementara
+// Tombol tambah data
 document.getElementById('btnTambah').addEventListener('click', function() {
-    const tgl = document.getElementById('tgl').value;
-    const namaPelanggan = document.getElementById('namaPelanggan').value;
-    const jumlah = document.getElementById('jumlah').value;
+    const tanggal = document.getElementById('inputTanggal').value;
+    let cabang = document.getElementById('inputCabang').value.trim().toUpperCase();
+    const nominal = parseFloat(document.getElementById('inputNominal').value);
 
-    if (!tgl || !namaPelanggan || !jumlah) {
-        alert('Semua kolom data harus diisi!');
+    if (!tanggal || !cabang || isNaN(nominal)) {
+        alert('Mohon lengkapi Tanggal, Nama Cabang, dan Nominal dengan benar!');
         return;
     }
 
-    listData.push({ tgl, namaPelanggan, jumlah: Number(jumlah) });
-    renderTabel();
-    
-    // Reset input data (kecuali tanggal jika ingin cepat)
-    document.getElementById('namaPelanggan').value = '';
-    document.getElementById('jumlah').value = '';
+    daftarData.push({ tanggal, cabang, nominal });
+    renderTabelPreview();
+
+    // Reset input form nominal & cabang (biar cepat input berikutnya)
+    document.getElementById('inputNominal').value = '';
+    document.getElementById('inputCabang').value = '';
 });
 
-function renderTabel() {
-    const tbody = document.querySelector('#tabelData tbody');
+function renderTabelPreview() {
+    const tbody = document.querySelector('#tabelPreview tbody');
     tbody.innerHTML = '';
 
-    listData.forEach((item, index) => {
+    daftarData.forEach((item, index) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${item.tgl}</td>
-            <td>${item.namaPelanggan}</td>
-            <td>${item.jumlah}</td>
-            <td><button onclick="hapusData(${index})" style="background-color: #dc3545;">Hapus</button></td>
+            <td>${item.tanggal}</td>
+            <td>${item.cabang}</td>
+            <td>Rp ${item.nominal.toLocaleString('id-ID')}</td>
+            <td><button class="btn-danger" onclick="hapusData(${index})">Hapus</button></td>
         `;
         tbody.appendChild(tr);
     });
 }
 
 function hapusData(index) {
-    listData.splice(index, 1);
-    renderTabel();
+    daftarData.splice(index, 1);
+    renderTabelPreview();
 }
 
-// Proses Ekspor ke Excel berdasarkan Template
+// Proses Ekspor ke format Excel matrik (Tanggal di baris, Cabang di kolom)
 document.getElementById('btnExport').addEventListener('click', function() {
-    if (listData.length === 0) {
-        alert('Belum ada data yang dimasukkan untuk direkap!');
+    if (daftarData.length === 0) {
+        alert('Belum ada data yang dimasukkan!');
         return;
     }
 
-    if (!templateFileBuffer) {
-        alert('Silakan upload file template Excel terlebih dahulu!');
-        return;
-    }
+    const selectBulan = document.getElementById('selectBulan');
+    const namaBulan = selectBulan.options[selectBulan.selectedIndex].text.toUpperCase();
+    const bulanIndex = parseInt(selectBulan.value);
+    const tahunAktif = new Date().getFullYear();
 
     try {
-        // Membaca workbook dari template yang diupload
-        const workbook = XLSX.read(templateFileBuffer, { type: 'array' });
-        
-        // Ambil sheet pertama dari template
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
+        let workbook;
+        let worksheet;
 
-        // Contoh penulisan data ke cell tertentu pada template Excel
-        // Sesuaikan koordinat cell (misal: A10, B10, dst.) dengan form template Excel Anda
-        let startRow = 10; // Baris awal pada template tempat data mulai dimasukkan
-        
-        listData.forEach((item, index) => {
-            let currentRow = startRow + index;
+        if (templateBuffer) {
+            // Jika user pakai template sendiri
+            workbook = XLSX.read(templateBuffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
+            worksheet = workbook.Sheets[sheetName];
+        } else {
+            // Buat worksheet baru otomatis sesuai struktur layout gambar Anda
+            workbook = XLSX.utils.book_new();
+            let wsData = [
+                ["", "", "", "REKAP PERMINTAAN BARANG TAHUN " + tahunAktif],
+                ["", "", "", namaBulan],
+                [],
+                ["TGL", ...daftarCabangDefault, "TOTAL"]
+            ];
+
+            // Tentukan jumlah hari dalam bulan tersebut
+            const jumlahHari = new Date(tahunAktif, bulanIndex + 1, 0).getDate();
             
-            // Asumsi kolom A = Tanggal, B = Nama Pelanggan, C = Jumlah
-            XLSX.utils.sheet_add_aoa(worksheet, [[item.tgl, item.namaPelanggan, item.jumlah]], { origin: `A${currentRow}` });
+            for (let d = 1; d <= jumlahHari; d++) {
+                let tglFormat = String(d).padStart(2, '0') + '-' + namaBulan.substring(0,3) + '-' + String(tahunAktif).slice(-2);
+                let rowData = [tglFormat];
+                
+                // Isi kosong dulu untuk setiap cabang
+                daftarCabangDefault.forEach(() => rowData.push(""));
+                rowData.push(""); // Kolom Total
+                wsData.push(rowData);
+            }
+
+            worksheet = XLSX.utils.aoa_to_sheet(wsData);
+            XLSX.utils.book_append_sheet(workbook, worksheet, namaBulan);
+        }
+
+        // Petakan data input user ke dalam sel matriks Excel
+        // Berdasarkan struktur: Header TGL ada di baris 4 (index 3), kolom Cabang mulai dari kolom ke-2 (index 1)
+        // Baris Tanggal 1 dimulai dari baris ke-5 (index 4)
+        
+        daftarData.forEach(item => {
+            let tglObj = new Date(item.tanggal);
+            if (tglObj.getMonth() === bulanIndex) {
+                let hari = tglObj.getDate(); // 1 sampai 31
+                let targetBaris = 4 + hari; // Baris Excel disesuaikan dengan tanggal
+                
+                // Cari kolom cabang di baris ke-4
+                let colIndex = -1;
+                let c = 1;
+                while (true) {
+                    let cellAddress = XLSX.utils.encode_cell({ r: 3, c: c });
+                    let cell = worksheet[cellAddress];
+                    if (!cell) break;
+                    if (cell.v.toString().toUpperCase() === item.cabang) {
+                        colIndex = c;
+                        break;
+                    }
+                    c++;
+                }
+
+                // Jika cabang ditemukan di tabel, masukkan nominalnya
+                if (colIndex !== -1) {
+                    let targetCell = XLSX.utils.encode_cell({ r: targetBaris - 1, c: colIndex });
+                    let nilaiSebelumnya = worksheet[targetCell] ? Number(worksheet[targetCell].v) || 0 : 0;
+                    
+                    XLSX.utils.sheet_add_aoa(worksheet, [[nilaiSebelumnya + item.nominal]], { origin: targetCell });
+                }
+            }
         });
 
-        // Generate file baru dan download
-        const bulanVal = document.getElementById('bulan').value || 'periode';
-        XLSX.writeFile(workbook, `Rekap_Order_${bulanVal}.xlsx`);
-    } catch (error) {
-        console.error(error);
+        // Download file excel
+        XLSX.writeFile(workbook, `Rekap_Order_${namaBulan}_${tahunAktif}.xlsx`);
+
+    } catch (err) {
+        console.error(err);
         alert('Terjadi kesalahan saat memproses file Excel.');
     }
 });
