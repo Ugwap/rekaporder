@@ -108,12 +108,11 @@ SQL tersebut **tidak menghapus data**:
 - mengganti nama kolom lama hasil impor CSV
   (`"Anyer - 2"` → `nama_toko`, `"CILEGON"` → `cabang`),
 - menambah kolom `nama_toko`, `cabang`, `regional` kalau belum ada,
-- mengisi 202 toko cadangan **hanya kalau tabel masih kosong**,
+- melengkapi 202 toko cadangan yang belum ada (tanpa menghapus/menduplikasi),
 - membuat RLS policy baca + `grant select` untuk role `anon`,
 - meminta PostgREST memuat ulang schema cache (`notify pgrst`).
 
-Kalau tabel `TOKO` memang sudah berisi data yang benar, langkah insert akan
-dilewati dan data lama tetap utuh.
+Toko yang sudah ada tidak diduplikasi, dan data lama tetap utuh.
 
 ---
 

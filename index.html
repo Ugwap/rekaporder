@@ -802,7 +802,7 @@
                         <button type="button" class="btn btn-mini" onclick="salinSql()">Salin SQL</button>
                         <p class="muted">SQL ini <b>tidak menghapus data</b>. Kolom lama hasil impor CSV
                            diganti namanya menjadi <code>nama_toko</code> dan <code>cabang</code>,
-                           lalu 202 toko cadangan hanya dimasukkan kalau tabel masih kosong.</p>
+                           lalu 202 toko cadangan dilengkapi otomatis kalau ada yang belum ada.</p>
                         <p class="muted">Tidak mau menjalankan SQL? Upload saja CSV toko di bagian
                            <b>2. Data Toko</b> (format <code>nama toko,cabang</code>). Aplikasi langsung
                            memakai data itu tanpa menunggu Supabase.</p>
@@ -847,7 +847,7 @@ where table_schema = 'public'
         // Hasilkan file SQL yang aman dijalankan berulang:
         // - tidak menghapus data,
         // - mengganti nama kolom lama hasil impor CSV,
-        // - mengisi 202 toko hanya kalau tabel masih kosong,
+        // - melengkapi 202 toko yang belum ada (tanpa menghapus/menduplikasi),
         // - memberi izin baca (RLS policy + grant) untuk anon.
         function buatSqlPerbaikan() {
             const daftar = dataTokoCadangan();
@@ -904,14 +904,16 @@ alter table public."TOKO" add column if not exists nama_toko text;
 alter table public."TOKO" add column if not exists cabang    text;
 alter table public."TOKO" add column if not exists regional  text;
 
--- 4) Isi 202 toko cadangan hanya kalau tabel masih kosong.
+-- 4) Lengkapi toko yang belum ada (tidak menghapus / menduplikasi).
 insert into public."TOKO" (nama_toko, cabang)
 select v.nama_toko, v.cabang
 from (values
 ${values}
 ) as v(nama_toko, cabang)
 where not exists (
-    select 1 from public."TOKO" where coalesce(trim(nama_toko), '') <> ''
+    select 1 from public."TOKO" t
+    where t.nama_toko = v.nama_toko
+      and coalesce(t.cabang, '') = coalesce(v.cabang, '')
 );
 
 -- 5) Izinkan aplikasi membaca data (RLS + policy + grant).
