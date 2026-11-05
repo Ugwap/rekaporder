@@ -9,97 +9,288 @@
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        :root {
+            --hijau: #16a085;
+            --hijau-tua: #0e7c66;
+            --merah: #e74c3c;
+            --biru: #3498db;
+            --teks: #1e293b;
+            --abu: #64748b;
+            --garis: #e2e8f0;
+        }
+        * { box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: #f4f6f9;
-            color: #333;
+            color: var(--teks);
             margin: 0;
             padding: 15px;
         }
-        .container { max-width: 800px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 20px; }
-        header h2 { color: #2c3e50; margin-bottom: 5px; font-size: 1.4rem; }
+        .container { max-width: 820px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 18px; }
+        header h2 { color: #2c3e50; margin: 0 0 4px; font-size: 1.4rem; }
+        header small { color: var(--abu); display: block; }
+        #statusKoneksi {
+            font-size: 0.8rem;
+            margin-top: 8px;
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #334155;
+        }
+        .status-ok { background: #d1fae5 !important; color: #065f46 !important; }
+        .status-err { background: #fee2e2 !important; color: #991b1b !important; }
+        .status-warn { background: #fef3c7 !important; color: #92400e !important; }
+        .status-loading { background: #e0f2fe !important; color: #075985 !important; }
         .card {
             background: #ffffff;
             padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
             margin-bottom: 15px;
         }
         .card h3 {
-            margin-top: 0;
+            margin: 0 0 12px;
             font-size: 1rem;
-            color: #16a085;
+            color: var(--hijau);
             border-bottom: 2px solid #ecf0f1;
-            padding-bottom: 6px;
+            padding-bottom: 8px;
         }
-        .form-group { margin-bottom: 12px; }
+        .form-group { margin-bottom: 13px; position: relative; }
         .form-group label {
             display: block;
             font-weight: 600;
             font-size: 0.85rem;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
             color: #475569;
         }
+        .form-group .req { color: var(--merah); }
         .form-group input, .form-group select {
             width: 100%;
-            padding: 8px 10px;
+            padding: 10px 12px;
             border: 1px solid #cbd5e1;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            box-sizing: border-box;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: #fff;
+            color: var(--teks);
         }
-        .btn {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--hijau);
+            box-shadow: 0 0 0 3px rgba(22,160,133,0.15);
+        }
+        .form-group input[readonly] {
+            background: #f8fafc;
+            color: #334155;
             font-weight: 600;
-            cursor: pointer;
+        }
+        .form-group input.invalid {
+            border-color: var(--merah);
+            box-shadow: 0 0 0 3px rgba(231,76,60,0.12);
+        }
+        .hint {
+            display: block;
+            font-size: 0.78rem;
+            margin-top: 5px;
+            color: var(--abu);
+            min-height: 1em;
+        }
+        .hint.ok { color: var(--hijau-tua); font-weight: 600; }
+        .hint.err { color: var(--merah); font-weight: 600; }
+        .readonly-pill {
+            padding: 9px 12px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid var(--garis);
+            font-weight: 600;
+            color: #334155;
             font-size: 0.9rem;
+        }
+        .suggest-box {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            z-index: 30;
+            margin-top: 4px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(15,23,42,0.15);
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .suggest-item {
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+        }
+        .suggest-item:last-child { border-bottom: 0; }
+        .suggest-item:hover, .suggest-item.active { background: #ecfdf5; }
+        .suggest-item .sub { display: block; font-size: 0.75rem; color: var(--abu); margin-top: 2px; }
+        .btn {
+            padding: 11px 15px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.92rem;
             width: 100%;
         }
-        .btn-success { background-color: #2ecc71; color: white; margin-top: 10px; }
+        .btn + .btn { margin-top: 9px; }
+        .btn-success { background-color: #2ecc71; color: white; }
         .btn-success:hover { background-color: #27ae60; }
-        .btn-primary { background-color: #3498db; color: white; margin-top: 10px; }
+        .btn-primary { background-color: var(--biru); color: white; }
         .btn-primary:hover { background-color: #2980b9; }
-        .table-responsive { overflow-x: auto; max-height: 350px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        th, td {
-            border: 1px solid #e2e8f0;
-            padding: 8px;
-            text-align: left;
-            font-size: 0.85rem;
+        .btn-ghost { background: #fff; color: #475569; border: 1px solid var(--garis); }
+        .btn-ghost:hover { background: #f8fafc; }
+        .btn-mini {
+            width: auto;
+            display: inline-block;
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            background: #334155;
+            color: #fff;
         }
-        th { background-color: #f8fafc; color: #475569; position: sticky; top: 0; }
+        .btn-mini:hover { background: #1e293b; }
+        .table-responsive { overflow-x: auto; max-height: 360px; overflow-y: auto; border: 1px solid var(--garis); border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 9px 8px;
+            text-align: left;
+            font-size: 0.83rem;
+            border-bottom: 1px solid var(--garis);
+            vertical-align: top;
+        }
+        th { background-color: #f8fafc; color: #475569; position: sticky; top: 0; z-index: 1; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover { background: #f8fafc; }
         .badge {
+            display: inline-block;
             background: #e2e8f0;
-            padding: 2px 6px;
+            padding: 2px 7px;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             color: #334155;
         }
-        #statusKoneksi {
-            font-size: 0.8rem;
-            margin-top: 6px;
-            display: block;
+        .badge-green { background: #d1fae5; color: #065f46; }
+        .empty-row td { text-align: center; color: var(--abu); padding: 22px 8px; }
+        .banner {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 0.84rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
         }
-        .status-ok { color: #16a085; }
-        .status-err { color: #e74c3c; }
+        .banner strong { display: block; margin-bottom: 3px; }
+        .banner details { margin-top: 8px; }
+        .banner summary { cursor: pointer; font-weight: 700; }
+        .banner pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.75rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .banner .muted { color: #78716c; font-size: 0.78rem; margin: 6px 0 0; }
+        .banner ol { margin: 8px 0 10px 18px; padding: 0; }
+        .banner li { margin-bottom: 3px; }
+        .banner code {
+            background: #fef3c7;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.78rem;
+            color: #7c2d12;
+        }
+        .row-actions button {
+            background: var(--merah);
+            color: #fff;
+            border: none;
+            padding: 5px 9px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .row-actions button:hover { background: #c0392b; }
+        .total-box {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #ecfdf5;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            color: #065f46;
+            font-weight: 700;
+        }
+        @media (max-width: 480px) {
+            body { padding: 10px; }
+            .card { padding: 13px; }
+            th, td { font-size: 0.78rem; padding: 8px 6px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h2>Villa Parfum</h2>
-            <small>Input Rekap Order Bulanan Otomatis</small>
-            <small id="statusKoneksi">Menghubungkan ke database...</small>
+            <small>Rekap Order Bulanan Otomatis</small>
+            <small id="statusKoneksi" class="status-loading">Menghubungkan ke database...</small>
         </header>
 
-        <!-- Pengaturan Periode & Template -->
+        <div id="dbBanner" class="banner" hidden></div>
+
+        <!-- 1. Input utama: tanggal -> toko -> cabang -> nominal -->
         <div class="card">
-            <h3>1. Periode & Template</h3>
+            <h3>1. Input Rekap</h3>
+
             <div class="form-group">
-                <label for="selectBulan">Pilih Bulan Rekap:</label>
+                <label for="inputTanggal">Tanggal <span class="req">*</span></label>
+                <input type="date" id="inputTanggal">
+            </div>
+
+            <div class="form-group">
+                <label for="inputToko">Nama Toko <span class="req">*</span></label>
+                <input type="text" id="inputToko" autocomplete="off" spellcheck="false"
+                       placeholder="Ketik nama toko, nanti otomatis dibetulkan...">
+                <div id="suggestBox" class="suggest-box" hidden></div>
+                <small id="infoToko" class="hint">Mulai ketik nama toko.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="inputCabang">Cabang (otomatis dari database)</label>
+                <input type="text" id="inputCabang" readonly placeholder="Terisi otomatis setelah toko dipilih">
+            </div>
+
+            <div class="form-group" id="groupRegional" hidden>
+                <label>Regional</label>
+                <div id="inputRegional" class="readonly-pill">—</div>
+            </div>
+
+            <div class="form-group">
+                <label for="inputNominal">Nominal (Rp) <span class="req">*</span></label>
+                <input type="number" id="inputNominal" inputmode="numeric" min="1" step="any" placeholder="0">
+            </div>
+
+            <button type="button" id="btnTambah" class="btn btn-success">+ Tambah ke Daftar</button>
+        </div>
+
+        <!-- 2. Periode & template -->
+        <div class="card">
+            <h3>2. Periode &amp; Template Excel</h3>
+            <div class="form-group">
+                <label for="selectBulan">Bulan Rekap:</label>
                 <select id="selectBulan">
                     <option value="0">Januari</option>
                     <option value="1">Februari</option>
@@ -110,38 +301,20 @@
                     <option value="6">Juli</option>
                     <option value="7">Agustus</option>
                     <option value="8">September</option>
-                    <option value="9" selected>Oktober</option>
+                    <option value="9">Oktober</option>
                     <option value="10">November</option>
                     <option value="11">Desember</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="inputTanggal">Tanggal Transaksi:</label>
-                <input type="date" id="inputTanggal">
-            </div>
-            <div class="form-group">
                 <label for="fileTemplate">Upload Template Excel Master:</label>
                 <input type="file" id="fileTemplate" accept=".xlsx, .xls">
+                <small id="infoTemplate" class="hint">Belum ada template dimuat.</small>
             </div>
+            <button type="button" id="btnMuatToko" class="btn btn-ghost">↻ Muat ulang data toko dari Supabase</button>
         </div>
 
-        <!-- Form Input Transaksi -->
-        <div class="card">
-            <h3>2. Input Transaksi Toko</h3>
-            <div class="form-group">
-                <label for="inputCariToko">Cari / Pilih Nama Toko / Cabang:</label>
-                <input type="text" id="inputCariToko" list="listMasterToko" placeholder="Ketik misal: Anyer atau Pekayon...">
-                <datalist id="listMasterToko"></datalist>
-                <small id="infoRegional" style="color: #16a085; font-weight: 600; display: block; margin-top: 4px;"></small>
-            </div>
-            <div class="form-group">
-                <label for="inputNominalSingle">Nominal / Jumlah (Rp):</label>
-                <input type="number" id="inputNominalSingle" placeholder="0">
-            </div>
-            <button type="button" id="btnTambahItem" class="btn btn-success">Tambah ke Daftar</button>
-        </div>
-
-        <!-- Daftar Data yang Sudah Masuk -->
+        <!-- 3. Preview -->
         <div class="card">
             <h3>3. Preview Data Tersimpan</h3>
             <div class="table-responsive">
@@ -149,25 +322,37 @@
                     <thead>
                         <tr>
                             <th>Tanggal</th>
-                            <th>Toko</th>
-                            <th>Regional</th>
+                            <th>Nama Toko</th>
+                            <th>Cabang</th>
                             <th>Nominal</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td colspan="5" style="text-align: center;">Belum ada data ditambahkan.</td></tr>
+                        <tr class="empty-row"><td colspan="5">Belum ada data ditambahkan.</td></tr>
                     </tbody>
                 </table>
             </div>
+            <div class="total-box">
+                <span>Total data</span>
+                <span id="infoTotal">0 data • Rp 0</span>
+            </div>
             <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Excel Bulanan</button>
+            <button type="button" id="btnReset" class="btn btn-ghost">Kosongkan Daftar</button>
         </div>
     </div>
 
     <script>
         // ====== KONFIGURASI SUPABASE ======
-        const SUPABASE_URL = 'https://vnwxknlpwjouzberzeju.supabase.co';
+        // URL & publishable key milik project yang dipakai aplikasi Order.
+        const SUPABASE_URL = 'https://vnvxknlpwjquzbmrzaju.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b';
+        const TABLE_TOKO = 'TOKO';
+
+        // Data cadangan dari DATATOKO.csv (202 toko). Dipakai kalau tabel TOKO
+        // di Supabase belum bisa dibaca (mis. RLS belum mengizinkan anon).
+        // Format: nama toko,cabang
+        const DATA_TOKO_CADANGAN_CSV = "Anyer - 2,CILEGON\nCilegon - 2,CILEGON\nCilegon - 3,CILEGON\nCilegon - 4,CILEGON\nCilegon - 1,CILEGON\nAnyer - 1,CILEGON\nPekayon,BEKASI\nBintara,BEKASI\nBonteng,BEKASI\nCaringin,BEKASI\nHarapan Baru,BEKASI\nRawa Lumbu,BEKASI\nCileungsi - 2,CILEUNGSI\nCileungsi - 1,CILEUNGSI\nWadas - 2,KARAWANG\nGempol,KARAWANG\nLamaran,KARAWANG\nCilamaya,KARAWANG\nWadas,KARAWANG\nTelagasari,KARAWANG\nKarasak,KARAWANG\nPandeglang - 1,PANDEGLANG\nPandeglang - 2,PANDEGLANG\nPetir,PANDEGLANG\nRangkas - 6,RANGKASBITUNG\nRangkas - 5,RANGKASBITUNG\nRangkas - 4,RANGKASBITUNG\nRangkas - 7,RANGKASBITUNG\nRBT - 1,RANGKASBITUNG\nRBT - 2,RANGKASBITUNG\nRBT - 3,RANGKASBITUNG\nBinong,TANGERANG\nPoris 2,TANGERANG\nBojong Nangka,TANGERANG\nPoris,TANGERANG\nITC BSD,TANGERANG\nBorobudur,TANGERANG\nTaman Cibodas,TANGERANG\nPandan,TANGERANG\nSumur Pacing,TANGERANG\nCemara,TANGERANG\nCiasem,PURWADADI\nAmpera - 2,PURWADADI\nAmpera,PURWADADI\nWanakerta,PURWADADI\nSukamandi,PURWADADI\nPurwadadi,PURWADADI\nParamont,BANDUNG\nDU - 1,BANDUNG\nCijambe,BANDUNG\nSindanglaya,BANDUNG\nGerlong,BANDUNG\nNanjung (independen),INDEPENDENT\nBuah Batu,BANDUNG\nSimpang Dago (SPB),BANDUNG\nMekar Wangi (MKW),BANDUNG\nGandok - 2 (GDK2),BANDUNG\nCibaduyut (CBD),BANDUNG\nAntapani (ATP),BANDUNG\nPabuaran - 2,KALIJATI\nPatok Besi,KALIJATI\nPabuaran,KALIJATI\nKalijati - 2,KALIJATI\nKalijati - 3 (sedayu),KALIJATI\nKalijati - 1,KALIJATI\nCipeundeuy,KALIJATI\nwantilan,KALIJATI\nKopkar Cibogo,KOPKAR\nKopkar 3C,KOPKAR\nKopkar 3B,KOPKAR\nKopkar 3,KOPKAR\nKopkar 1,KOPKAR\nKopkar Taekwang,KOPKAR\nPasawahan,PURWAKARTA 1\nSudirman - 2,PURWAKARTA 1\nJl. Tengah,PURWAKARTA 1\nCempaka,PURWAKARTA 1\nSadang - 2,PURWAKARTA 1\nWanayasa - 2,PURWAKARTA 1\nIPIK - 2,PURWAKARTA 1\nCihuni,PURWAKARTA 1\nWanayasa,PURWAKARTA 1\nMunjul,PURWAKARTA 1\nSudirman - 1,PURWAKARTA 1\nSadang - 1,PURWAKARTA 1\nSimpang,PURWAKARTA 1\nMaracang - 2,PURWAKARTA 2\nJati Luhur,PURWAKARTA 2\nMaracang,PURWAKARTA 2\nCiteko (plered 2),PURWAKARTA 2\nSukarata,PURWAKARTA 2\nPlered -1,PURWAKARTA 2\nSindang kasih,PURWAKARTA 2\nIbrahim,PURWAKARTA 2\nBunder,PURWAKARTA 2\nOtista - 2,SUBANG\nOtista - 3,SUBANG\nDangdeur,SUBANG\nCagak - 2,SUBANG\nSoklat,SUBANG\nPalabuan,SUBANG\nKertawigenda (PLB 2),SUBANG\nCagak,SUBANG\nOtista - 1 (OTS),SUBANG\nCigadung,SUBANG\nPanglejar,SUBANG\nSembung,PAGADEN\nCipunagara,PAGADEN\nPlaza (Pagadean 3),PAGADEN\nPagaden,PAGADEN\nKamarung,PAGADEN\nKopkar 2 (Bojong),KOPKAR\nKopkar 2 (Veteran),KOPKAR\nPawarengan,CIKAMPEK\nSukaseuri,CIKAMPEK\nKrajan,CIKAMPEK\nPangulah,CIKAMPEK\nBabakan Jati,CIKAMPEK\nLeLea,INDRAMAYU\nINDRAMAYU 2(Sudirman 144 - 2),INDRAMAYU\nINDRAMAYU 3,INDRAMAYU\nINDRAMAYU 4,INDRAMAYU\nINDRAMAYU 5,INDRAMAYU\nIDR144 (sudirman 144),INDRAMAYU\nKarang Turi,INDRAMAYU\nBangkir,INDRAMAYU\nKarang Ampel - 2,JATIBARANG\nJati Barang - 4,JATIBARANG\nJati Barang - 5,JATIBARANG\nKarang Ampel - 1,JATIBARANG\nJati Barang - 1,JATIBARANG\nJati Barang - 2,JATIBARANG\nJati Barang - 3,JATIBARANG\nJatiwangi - 2,KADIPATEN\nJati Tujuh,KADIPATEN\nKadipaten - 3,KADIPATEN\nRaja Galuh,KADIPATEN\nKadipaten - 1,KADIPATEN\nKadipaten - 2,KADIPATEN\nJatiwangi - 1,KADIPATEN\nTrisi,KARANGSINOM\nTrisi 2,KARANGSINOM\nJangga,KARANGSINOM\nKarang Sinom,KARANGSINOM\nKopkar 11 HGL,KOKAR\nKopkar 3E Wanguk,KOKAR\nKopkar 4,KOKAR\nKop 12 Ajatan,KOKAR\nPMK - 4,PAMANUKAN\nPMK - 5,PAMANUKAN\nPusaka - 3,PAMANUKAN\nBatang Sari,PAMANUKAN\nPusaka - 2,PAMANUKAN\nWates - 2,PAMANUKAN\npmk 6 = pusaka 3,PAMANUKAN\nPMK - 2,PAMANUKAN\nPMK - 3,PAMANUKAN\nPusaka,PAMANUKAN\nSukra,PAMANUKAN\nWates,PAMANUKAN\nKopkar Ajw 1,KOPKAR\nKopkar Ajw 2,KOPKAR\nKopkar 5 Bangko,KOPKAR\nKopkar 5B Bangko,KOPKAR\nKop 6 Selincah,KOPKAR\nBudi Kemuliaan,DUMAI\nJl. Baru,DUMAI\nJaya Mukti - 2,DUMAI\nSudirman (DMI),DUMAI\nPurnama,DUMAI\nOmbak,DUMAI\nSipin,JAMBI 1\nSimpang 16,JAMBI 2\nMayang,JAMBI 3\nMendalo,JAMBI 4\nTugu Juang,JAMBI 5\nTelanai - 2,JAMBI 6\nTelanai - 3,JAMBI 7\nSimpang Rimbo,JAMBI 8\nWijaya (M.Taher),JAMBI 2\nLippo (Rky Hitam),JAMBI 3\nSimpang Pulai,JAMBI 4\nMeranti,JAMBI 5\nPasir Putih,JAMBI 6\nThehok,JAMBI 7\nKebun Kopi,JAMBI 8\nKota Baru (Kenali),JAMBI 9\nMB - 1,MUARA BUNGO\nMB - 2,MUARA BUNGO\nMB - 3,MUARA BUNGO\nSungai Pinang,MUARA BUNGO\nMuaro Tebo,MUARA BUNGO\nRimbo Bujang,MUARA BUNGO\nKuamang,MUARA BUNGO\nNgesrep,SEMARANG\nTlogosari,SEMARANG\nUnggaran,SEMARANG\nUnnes,SEMARANG\nKerinci - 1,KERINCI\nKerinci - 2,KERINCI\nSarolangun,INDEPENDENT\nKuala Tungkal,INDEPENDENT";
 
         let _supabase = null;
         try {
@@ -176,204 +361,977 @@
             console.error('Gagal membuat client Supabase:', err);
         }
 
-        let masterToko = [];
-        let listDataRekap = [];
+        // ====== STATE ======
+        let masterToko = [];       // [{ nama_toko, cabang, regional, raw }]
+        let listDataRekap = [];    // [{ tanggal, nama_toko, cabang, regional, nominal }]
         let templateBuffer = null;
+        let selectedToko = null;
+        let suggestionItems = [];
+        let activeSuggestion = -1;
+        let currentColumns = null;
 
-        const elStatus = document.getElementById('statusKoneksi');
+        const $ = (id) => document.getElementById(id);
+        const elStatus = $('statusKoneksi');
+        const elBanner = $('dbBanner');
+        const inputTanggal = $('inputTanggal');
+        const inputToko = $('inputToko');
+        const inputCabang = $('inputCabang');
+        const inputNominal = $('inputNominal');
+        const suggestBox = $('suggestBox');
+        const infoToko = $('infoToko');
+        const groupRegional = $('groupRegional');
+        const inputRegional = $('inputRegional');
+        const selectBulan = $('selectBulan');
 
-        function setStatus(teks, ok) {
+        // ====== UTIL ======
+        function setStatus(teks, tipe) {
             elStatus.textContent = teks;
-            elStatus.className = ok ? 'status-ok' : 'status-err';
+            elStatus.className = tipe === 'ok' ? 'status-ok'
+                : tipe === 'err' ? 'status-err'
+                : tipe === 'warn' ? 'status-warn'
+                : 'status-loading';
         }
 
-        document.getElementById('inputTanggal').valueAsDate = new Date();
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
-        // Ambil data toko & regional dari tabel TOKO.
-        // Utamakan kolom bernama nama_toko & regional; kalau belum
-        // diganti namanya, pakai urutan kolom 1 dan 2 sebagai cadangan.
-        async function muatDataToko() {
-            if (!_supabase) {
-                setStatus('Client Supabase gagal dibuat. Cek URL dan key.', false);
-                return;
-            }
-            if (SUPABASE_ANON_KEY.startsWith('ISI_')) {
-                setStatus('Publishable key belum diisi di kode.', false);
-                return;
-            }
-            try {
-                const { data, error } = await _supabase.from('TOKO').select('*');
+        function clean(v) {
+            if (v === null || v === undefined) return '';
+            return String(v).replace(/\s+/g, ' ').trim();
+        }
+
+        function normalize(s) {
+            return clean(s)
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[^A-Z0-9 ]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function normKey(k) {
+            return String(k).toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function hariIni() {
+            const d = new Date();
+            const off = d.getTimezoneOffset();
+            return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+        }
+
+        function rupiah(n) {
+            return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+        }
+
+        // ====== BACA DATA TOKO ======
+        // Ambil semua baris dengan pagination (Supabase default 1000 baris).
+        async function ambilSemuaBaris(table) {
+            const pageSize = 1000;
+            let from = 0;
+            const semua = [];
+            for (let halaman = 0; halaman < 20; halaman++) {
+                const { data, error } = await _supabase
+                    .from(table)
+                    .select('*')
+                    .range(from, from + pageSize - 1);
                 if (error) throw error;
+                if (!data || data.length === 0) break;
+                semua.push(...data);
+                if (data.length < pageSize) break;
+                from += pageSize;
+            }
+            return semua;
+        }
 
-                if (!data || data.length === 0) {
-                    setStatus('Terhubung, tapi tabel TOKO kosong. Cek RLS policy (select) di Supabase.', false);
+        // Deteksi nama kolom secara fleksibel, supaya tabel dari Supabase
+        // tetap terbaca walau nama kolomnya memakai spasi/huruf besar.
+        function deteksiKolom(row) {
+            const keys = Object.keys(row || {});
+            const map = new Map();
+            keys.forEach(k => map.set(normKey(k), k));
+
+            const pick = (...nama) => {
+                for (const n of nama) {
+                    const k = map.get(normKey(n));
+                    if (k) return k;
+                }
+                return null;
+            };
+
+            // Kolom "nama toko" (bukan cabang).
+            let nameKey = pick(
+                'nama_toko', 'nama toko', 'namatoko', 'toko',
+                'nama', 'store_name', 'store', 'outlet_name', 'outlet',
+                'nama_store', 'nama_usaha', 'nama_gerai'
+            );
+
+            // Kolom "cabang".
+            let branchKey = pick(
+                'cabang', 'branch', 'nama_cabang', 'nama cabang',
+                'cabang_toko', 'kode_cabang', 'kode cabang'
+            );
+
+            // Kalau tidak ada nama_toko, pakai kolom pertama yang masuk akal.
+            if (!nameKey && branchKey) nameKey = branchKey;
+            if (!nameKey) {
+                const kandidat = keys.find(k => /nama|toko|store|outlet|cabang|branch/i.test(k));
+                nameKey = kandidat || keys[0] || null;
+            }
+
+            // Tabel hasil impor CSV kadang memakai baris pertama sebagai nama
+            // kolom (mis. "Anyer - 2" dan "CILEGON"). Kalau hanya ada 2 kolom
+            // dan tidak ada kolom cabang yang dikenali, pakai kolom kedua.
+            if (!branchKey && keys.length === 2 && keys[1] && keys[1] !== nameKey) {
+                branchKey = keys[1];
+            }
+
+            if (nameKey && branchKey && nameKey === branchKey && keys.length > 1) {
+                branchKey = null;
+            }
+
+            const regionalKey = pick(
+                'regional', 'region', 'wilayah', 'area',
+                'kota', 'kabupaten', 'daerah'
+            );
+
+            return { nameKey, branchKey, regionalKey };
+        }
+
+        function petakanBaris(rows) {
+            if (!rows.length) return [];
+            currentColumns = deteksiKolom(rows[0]);
+            if (!currentColumns.nameKey) return [];
+
+            const hasil = [];
+            for (const row of rows) {
+                const nama = clean(row[currentColumns.nameKey]);
+                if (!nama) continue;
+                const cabang = currentColumns.branchKey
+                    ? clean(row[currentColumns.branchKey]) : '';
+                const regional = currentColumns.regionalKey
+                    ? clean(row[currentColumns.regionalKey]) : '';
+                hasil.push({
+                    nama_toko: nama,
+                    cabang: cabang,
+                    regional: regional,
+                    raw: row
+                });
+            }
+            return hasil;
+        }
+
+        function buangDuplikat(items) {
+            const seen = new Set();
+            const out = [];
+            for (const it of items) {
+                const key = normalize(it.nama_toko) + '|' + normalize(it.cabang);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                out.push(it);
+            }
+            out.sort((a, b) => a.nama_toko.localeCompare(b.nama_toko, 'id', { sensitivity: 'base' }));
+            return out;
+        }
+
+        function labelKolom() {
+            if (!currentColumns) return '';
+            const nama = [];
+            if (currentColumns.nameKey) nama.push(currentColumns.nameKey);
+            if (currentColumns.branchKey && currentColumns.branchKey !== currentColumns.nameKey) {
+                nama.push(currentColumns.branchKey);
+            }
+            if (currentColumns.regionalKey) nama.push(currentColumns.regionalKey);
+            return nama.join(', ');
+        }
+
+        function dataTokoCadangan() {
+            const hasil = [];
+            DATA_TOKO_CADANGAN_CSV.split('\n').forEach(line => {
+                const teks = line.trim();
+                if (!teks) return;
+                const koma = teks.indexOf(',');
+                if (koma < 0) return;
+                const nama = teks.slice(0, koma).trim();
+                const cabang = teks.slice(koma + 1).trim();
+                if (nama) {
+                    hasil.push({
+                        nama_toko: nama,
+                        cabang: cabang,
+                        regional: '',
+                        raw: null
+                    });
+                }
+            });
+            return buangDuplikat(hasil);
+        }
+
+        function pakaiDataCadangan(alasan) {
+            masterToko = dataTokoCadangan();
+            currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
+            setStatus('⚠ Data cadangan — ' + masterToko.length +
+                ' toko (Supabase belum terbaca).', 'warn');
+            tampilkanBanner('cadangan');
+            if (inputToko.value.trim()) {
+                terapkanKecocokan(resolveToko(inputToko.value), false);
+            }
+            if (alasan) console.warn('Memakai data cadangan:', alasan);
+        }
+
+        async function muatDataToko(showAlert) {
+            setStatus('Memuat data toko...', 'loading');
+            elBanner.hidden = true;
+            masterToko = [];
+            currentColumns = null;
+
+            if (!_supabase) {
+                pakaiDataCadangan('client Supabase gagal dibuat');
+                if (showAlert) {
+                    alert('Client Supabase gagal dibuat. Aplikasi memakai data cadangan.\n' +
+                          'Periksa koneksi internet lalu muat ulang.');
+                }
+                return;
+            }
+
+            try {
+                const rows = await ambilSemuaBaris(TABLE_TOKO);
+
+                if (!rows.length) {
+                    pakaiDataCadangan('tabel TOKO mengembalikan 0 baris');
+                    if (showAlert) {
+                        alert('Tabel TOKO belum bisa dibaca dari Supabase (0 baris).\n\n' +
+                              'Aplikasi sementara memakai data cadangan DATATOKO.csv (' +
+                              masterToko.length + ' toko).\n' +
+                              'Ikuti petunjuk "Cara memperbaiki tabel TOKO" di halaman ini.');
+                    }
                     return;
                 }
 
-                masterToko = data.map(row => {
-                    const keys = Object.keys(row);
-                    const nama = row.nama_toko !== undefined ? row.nama_toko : row[keys[0]];
-                    const reg = row.regional !== undefined ? row.regional : row[keys[1]];
-                    return { nama_toko: nama, regional: reg };
-                }).filter(t => t.nama_toko);
+                const mapped = petakanBaris(rows);
+                if (!mapped.length) {
+                    pakaiDataCadangan('kolom tabel TOKO tidak dikenali');
+                    if (showAlert) {
+                        alert('Tabel TOKO berisi data, tetapi kolom nama toko/cabang tidak dikenali.\n' +
+                              'Aplikasi memakai data cadangan. Perbaiki struktur tabel lewat SQL di halaman ini.');
+                    }
+                    return;
+                }
 
-                const datalist = document.getElementById('listMasterToko');
-                datalist.innerHTML = '';
-                masterToko.forEach(toko => {
-                    const option = document.createElement('option');
-                    option.value = toko.nama_toko;
-                    option.label = `Regional: ${toko.regional}`;
-                    datalist.appendChild(option);
-                });
+                masterToko = buangDuplikat(mapped);
+                const infoKolom = labelKolom();
+                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat' +
+                    (infoKolom ? ' (' + infoKolom + ')' : '') + '.', 'ok');
+                elBanner.hidden = true;
 
-                setStatus(`✔ Terhubung. ${masterToko.length} toko dimuat.`, true);
+                // Kalau input sudah terisi, coba cocokkan ulang.
+                if (inputToko.value.trim()) terapkanKecocokan(resolveToko(inputToko.value), false);
             } catch (err) {
                 console.error('Gagal memuat toko:', err);
-                setStatus('Gagal memuat toko: ' + (err.message || err), false);
-                alert('Gagal memuat toko: ' + (err.message || err));
+                pakaiDataCadangan(err.message || err);
+                if (showAlert) {
+                    alert('Gagal memuat toko dari Supabase: ' + (err.message || err) + '\n\n' +
+                          'Aplikasi memakai data cadangan (' + masterToko.length + ' toko).');
+                }
             }
         }
 
-        muatDataToko();
-
-        function cariToko(nama) {
-            const val = nama.trim().toUpperCase();
-            return masterToko.find(t => String(t.nama_toko).trim().toUpperCase() === val);
+        function tampilkanBanner(jenis) {
+            let html = '';
+            if (jenis === 'cadangan') {
+                html = `
+                    <strong>⚠ Data toko dari Supabase belum bisa dibaca.</strong>
+                    Aplikasi sementara memakai <b>data cadangan DATATOKO.csv</b>
+                    (<b>${masterToko.length} toko</b>) supaya input tetap bisa dipakai.
+                    <br>
+                    Penyebab paling umum: <b>RLS / hak akses anon</b> pada tabel
+                    <b>public."TOKO"</b>, atau kolom tabelnya masih memakai nama dari
+                    baris pertama CSV (mis. <code>"Anyer - 2"</code> dan <code>"CILEGON"</code>).
+                    <details>
+                        <summary>Cara memperbaiki (pemilik Supabase)</summary>
+                        <ol>
+                            <li>Klik <b>⬇ Unduh SQL perbaikan</b> di bawah.</li>
+                            <li>Buka <b>Supabase → SQL Editor</b>.</li>
+                            <li>Tempel isi file <code>perbaiki-toko.sql</code>, lalu klik <b>Run</b>.</li>
+                            <li>Kembali ke halaman ini dan klik <b>↻ Muat ulang data toko</b>.</li>
+                        </ol>
+                        <button type="button" class="btn btn-mini" onclick="unduhSqlPerbaikan()">⬇ Unduh SQL perbaikan</button>
+                        <button type="button" class="btn btn-mini" onclick="salinSql()">Salin SQL</button>
+                        <p class="muted">SQL ini <b>tidak menghapus data</b>. Kolom lama hasil impor CSV
+                           diganti namanya menjadi <code>nama_toko</code> dan <code>cabang</code>,
+                           lalu 202 toko cadangan hanya dimasukkan kalau tabel masih kosong.</p>
+                    </details>`;
+            } else if (jenis === 'kolom') {
+                html = `
+                    <strong>⚠ Kolom tabel TOKO tidak dikenali.</strong>
+                    Data terbaca, tetapi tidak ada kolom nama toko/cabang yang cocok.
+                    Pastikan tabel <b>TOKO</b> punya kolom seperti <b>nama_toko</b> dan
+                    <b>cabang</b> (boleh juga <b>nama</b>, <b>toko</b>, <b>branch</b>).
+                    <details>
+                        <summary>Cara memperbaiki</summary>
+                        <p>Unduh SQL perbaikan, jalankan di Supabase SQL Editor, lalu muat ulang data toko.</p>
+                        <button type="button" class="btn btn-mini" onclick="unduhSqlPerbaikan()">⬇ Unduh SQL perbaikan</button>
+                        <button type="button" class="btn btn-mini" onclick="salinSql()">Salin SQL</button>
+                        <p class="muted">Atau cek manual struktur tabel:</p>
+                        <pre>select column_name, data_type
+from information_schema.columns
+where table_schema = 'public'
+  and table_name = 'TOKO';</pre>
+                    </details>`;
+            } else {
+                html = `
+                    <strong>⚠ Gagal terhubung ke Supabase.</strong>
+                    Periksa koneksi internet, URL project, dan publishable key.
+                    Aplikasi tetap bisa dipakai dengan data cadangan.
+                    <details>
+                        <summary>Detail teknis</summary>
+                        <p class="muted">URL: ${esc(SUPABASE_URL)}</p>
+                    </details>`;
+            }
+            elBanner.innerHTML = html;
+            elBanner.hidden = false;
         }
 
-        document.getElementById('inputCariToko').addEventListener('input', function(e) {
-            const matched = cariToko(e.target.value);
-            const info = document.getElementById('infoRegional');
-            info.textContent = matched ? `✔ Regional terdeteksi: ${matched.regional}` : '';
-        });
+        // ====== SQL PERBAIKAN TABEL TOKO ======
+        function sqlNilai(v) {
+            if (v === null || v === undefined || v === '') return 'null';
+            return "'" + String(v).replace(/'/g, "''") + "'";
+        }
 
-        document.getElementById('fileTemplate').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                templateBuffer = new Uint8Array(ev.target.result);
-                alert('Template Excel berhasil dimuat!');
-            };
-            reader.readAsArrayBuffer(file);
-        });
+        // Hasilkan file SQL yang aman dijalankan berulang:
+        // - tidak menghapus data,
+        // - mengganti nama kolom lama hasil impor CSV,
+        // - mengisi 202 toko hanya kalau tabel masih kosong,
+        // - memberi izin baca (RLS policy + grant) untuk anon.
+        function buatSqlPerbaikan() {
+            const daftar = dataTokoCadangan();
+            const values = daftar.map(t =>
+                '    (' + sqlNilai(t.nama_toko) + ', ' + sqlNilai(t.cabang) + ')'
+            ).join(',\n');
 
-        document.getElementById('btnTambahItem').addEventListener('click', function() {
-            const tanggal = document.getElementById('inputTanggal').value;
-            const namaTokoInput = document.getElementById('inputCariToko').value;
-            const nominal = parseFloat(document.getElementById('inputNominalSingle').value);
+            return `-- ============================================================
+-- Perbaikan tabel public."TOKO" - aplikasi Rekap Order
+-- Jalankan di Supabase: Dashboard -> SQL Editor -> Run
+-- Aman dijalankan berulang dan tidak menghapus data.
+-- ============================================================
 
-            if (!tanggal || !namaTokoInput.trim() || isNaN(nominal) || nominal <= 0) {
-                alert('Mohon lengkapi Tanggal, pilih Toko dari dropdown, dan masukkan Nominal!');
+begin;
+
+-- 1) Buat tabel kalau belum ada.
+create table if not exists public."TOKO" (
+    id        bigserial primary key,
+    nama_toko text,
+    cabang    text,
+    regional  text
+);
+
+-- 2) Ganti nama kolom lama hasil impor CSV (kalau ada).
+do $$
+begin
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'TOKO'
+          and column_name = 'Anyer - 2'
+    ) and not exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'TOKO'
+          and column_name = 'nama_toko'
+    ) then
+        alter table public."TOKO" rename column "Anyer - 2" to nama_toko;
+    end if;
+
+    if exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'TOKO'
+          and column_name = 'CILEGON'
+    ) and not exists (
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = 'TOKO'
+          and column_name = 'cabang'
+    ) then
+        alter table public."TOKO" rename column "CILEGON" to cabang;
+    end if;
+end $$;
+
+-- 3) Lengkapi kolom yang masih kurang.
+alter table public."TOKO" add column if not exists nama_toko text;
+alter table public."TOKO" add column if not exists cabang    text;
+alter table public."TOKO" add column if not exists regional  text;
+
+-- 4) Isi 202 toko cadangan hanya kalau tabel masih kosong.
+insert into public."TOKO" (nama_toko, cabang)
+select v.nama_toko, v.cabang
+from (values
+${values}
+) as v(nama_toko, cabang)
+where not exists (
+    select 1 from public."TOKO" where coalesce(trim(nama_toko), '') <> ''
+);
+
+-- 5) Izinkan aplikasi membaca data (RLS + policy + grant).
+alter table public."TOKO" enable row level security;
+
+drop policy if exists "toko_baca_semua" on public."TOKO";
+drop policy if exists "toko_read_all" on public."TOKO";
+create policy "toko_baca_semua" on public."TOKO"
+    for select to anon, authenticated
+    using (true);
+
+grant usage on schema public to anon, authenticated;
+grant select on table public."TOKO" to anon, authenticated;
+
+commit;
+
+-- 6) Minta PostgREST memuat ulang schema cache.
+notify pgrst, 'reload schema';
+
+-- Cek hasil:
+-- select count(*) as jumlah_toko from public."TOKO";
+`;
+        }
+
+        function unduhSqlPerbaikan() {
+            try {
+                const isi = buatSqlPerbaikan();
+                const blob = new Blob([isi], { type: 'text/plain;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'perbaiki-toko.sql';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 1500);
+            } catch (err) {
+                console.error('Gagal membuat SQL perbaikan:', err);
+                alert('Gagal membuat file SQL: ' + (err.message || err));
+            }
+        }
+
+        async function salinSql() {
+            const pre = $('sqlFix');
+            const teks = pre ? pre.textContent : buatSqlPerbaikan();
+            try {
+                if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                    throw new Error('Clipboard tidak tersedia');
+                }
+                await navigator.clipboard.writeText(teks);
+                alert('SQL disalin. Tempel di Supabase SQL Editor lalu klik Run.');
+            } catch (err) {
+                alert('Gagal menyalin otomatis.\\n\\n' +
+                      'Klik tombol "⬇ Unduh SQL perbaikan", lalu buka file perbaiki-toko.sql ' +
+                      'di Supabase SQL Editor.');
+            }
+        }
+
+        // ====== PENCARIAN & AUTO-CORRECT ======
+        function levenshtein(a, b) {
+            if (a === b) return 0;
+            if (!a.length) return b.length;
+            if (!b.length) return a.length;
+            let prev = new Array(b.length + 1);
+            let cur = new Array(b.length + 1);
+            for (let j = 0; j <= b.length; j++) prev[j] = j;
+            for (let i = 1; i <= a.length; i++) {
+                cur[0] = i;
+                for (let j = 1; j <= b.length; j++) {
+                    const biaya = a[i - 1] === b[j - 1] ? 0 : 1;
+                    cur[j] = Math.min(
+                        prev[j] + 1,
+                        cur[j - 1] + 1,
+                        prev[j - 1] + biaya
+                    );
+                }
+                [prev, cur] = [cur, prev];
+            }
+            return prev[b.length];
+        }
+
+        function kemiripan(a, b) {
+            if (!a || !b) return 0;
+            return 1 - (levenshtein(a, b) / Math.max(a.length, b.length));
+        }
+
+        function skorCocok(query, t) {
+            const q = normalize(query);
+            if (!q) return 0;
+
+            const nama = normalize(t.nama_toko);
+            if (nama === q) return 1000;
+            if (nama.startsWith(q)) return 860 - Math.min(180, nama.length - q.length);
+            if (nama.includes(q)) return 700 - Math.min(180, nama.length - q.length);
+
+            const qt = q.split(' ').filter(Boolean);
+            const nt = nama.split(' ').filter(Boolean);
+            if (qt.length && qt.every(x => nt.some(y => y.startsWith(x) || x.startsWith(y)))) {
+                return 620;
+            }
+
+            const sim = kemiripan(q, nama);
+            if (sim >= 0.55) return Math.round(sim * 520);
+
+            const cabang = normalize(t.cabang);
+            if (cabang) {
+                if (cabang === q) return 950;
+                if (cabang.startsWith(q)) return 820 - Math.min(180, cabang.length - q.length);
+                if (cabang.includes(q)) return 660;
+                const simC = kemiripan(q, cabang);
+                if (simC >= 0.68) return Math.round(simC * 480);
+            }
+            return 0;
+        }
+
+        function cariKandidat(query, batas) {
+            const q = clean(query);
+            const limit = batas || 8;
+            if (!q) return masterToko.slice(0, limit).map(t => ({ ...t, _skor: 0 }));
+
+            const hasil = [];
+            for (const t of masterToko) {
+                const skor = skorCocok(q, t);
+                if (skor > 0) hasil.push({ ...t, _skor: skor });
+            }
+            hasil.sort((a, b) => b._skor - a._skor || a.nama_toko.localeCompare(b.nama_toko, 'id'));
+            return hasil.slice(0, limit);
+        }
+
+        function resolveToko(input) {
+            const q = clean(input);
+            if (!q) return null;
+            const kandidat = cariKandidat(q, 5);
+            if (!kandidat.length) return null;
+
+            const terbaik = kandidat[0];
+            const kedua = kandidat[1];
+            const qn = normalize(q);
+            if (normalize(terbaik.nama_toko) === qn) return terbaik;
+            if (normalize(terbaik.cabang) === qn) return terbaik;
+
+            // Jangan auto-correct untuk ketikan yang masih terlalu pendek
+            // (mis. "a" bisa cocok ke banyak toko sekaligus).
+            if (qn.length < 3) return null;
+
+            if (kandidat.length === 1) return terbaik;
+            if (!kedua) return terbaik;
+
+            // Auto-correct hanya kalau pemenangnya jelas.
+            if (terbaik._skor >= 700 && (terbaik._skor - kedua._skor) >= 120) return terbaik;
+            if (terbaik._skor >= 860) return terbaik;
+            return null;
+        }
+
+        function subLabel(t) {
+            const bagian = [];
+            if (t.cabang && normalize(t.cabang) !== normalize(t.nama_toko)) {
+                bagian.push('Cabang: ' + t.cabang);
+            }
+            if (t.regional) bagian.push('Regional: ' + t.regional);
+            return bagian.join(' • ');
+        }
+
+        // ====== AUTOCOMPLETE UI ======
+        function tampilkanSaran(query) {
+            suggestionItems = cariKandidat(query, 8);
+            activeSuggestion = -1;
+            suggestBox.innerHTML = '';
+
+            if (!suggestionItems.length) {
+                suggestBox.hidden = true;
                 return;
             }
 
-            const tokoData = cariToko(namaTokoInput);
-            if (!tokoData) {
-                alert('Nama toko tidak ditemukan di database! Pastikan memilih dari opsi dropdown.');
+            suggestionItems.forEach((t, idx) => {
+                const div = document.createElement('div');
+                div.className = 'suggest-item';
+                div.dataset.index = String(idx);
+                const sub = subLabel(t);
+                div.innerHTML = '<strong>' + esc(t.nama_toko) + '</strong>' +
+                    (sub ? '<span class="sub">' + esc(sub) + '</span>' : '');
+                // mousedown supaya tidak kalah oleh event blur
+                div.addEventListener('mousedown', (ev) => {
+                    ev.preventDefault();
+                    pilihToko(t);
+                });
+                suggestBox.appendChild(div);
+            });
+            suggestBox.hidden = false;
+        }
+
+        function sembunyikanSaran() {
+            suggestBox.hidden = true;
+            activeSuggestion = -1;
+            suggestionItems = [];
+        }
+
+        function tandaiSaran() {
+            const items = suggestBox.querySelectorAll('.suggest-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === activeSuggestion));
+            if (activeSuggestion >= 0 && items[activeSuggestion]) {
+                items[activeSuggestion].scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function terapkanKecocokan(t, benarBenarUbahInput) {
+            if (!t) {
+                selectedToko = null;
+                inputCabang.value = '';
+                inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
+                inputRegional.textContent = '—';
+                groupRegional.hidden = true;
+                inputToko.classList.add('invalid');
+                infoToko.textContent = masterToko.length
+                    ? '⚠ Toko tidak ditemukan di database. Pilih dari daftar yang muncul.'
+                    : 'Data toko belum dimuat dari Supabase.';
+                infoToko.className = 'hint err';
+                return;
+            }
+
+            selectedToko = t;
+            if (benarBenarUbahInput !== false) {
+                inputToko.value = t.nama_toko;
+            }
+            inputCabang.value = t.cabang || '';
+            inputCabang.placeholder = t.cabang ? '' : 'Tidak ada kolom cabang di database';
+            inputRegional.textContent = t.regional || '—';
+            groupRegional.hidden = !t.regional;
+            inputToko.classList.remove('invalid');
+
+            const sub = subLabel(t);
+            infoToko.textContent = '✔ Cocok dengan database' + (sub ? ' — ' + sub : '');
+            infoToko.className = 'hint ok';
+        }
+
+        function pilihToko(t) {
+            terapkanKecocokan(t, true);
+            sembunyikanSaran();
+            inputNominal.focus();
+        }
+
+        inputToko.addEventListener('input', () => {
+            selectedToko = null;
+            inputCabang.value = '';
+            inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
+            inputRegional.textContent = '—';
+            groupRegional.hidden = true;
+            inputToko.classList.remove('invalid');
+
+            const val = inputToko.value;
+            if (!val.trim()) {
+                infoToko.textContent = 'Mulai ketik nama toko.';
+                infoToko.className = 'hint';
+                tampilkanSaran('');
+                return;
+            }
+
+            // Kalau sudah persis sama, langsung isi cabang.
+            const persis = masterToko.find(t => normalize(t.nama_toko) === normalize(val));
+            if (persis) {
+                terapkanKecocokan(persis, false);
+            } else {
+                infoToko.textContent = 'Pilih dari daftar, atau tekan Tab/klik di luar untuk auto-correct.';
+                infoToko.className = 'hint';
+            }
+            tampilkanSaran(val);
+        });
+
+        inputToko.addEventListener('focus', () => {
+            tampilkanSaran(inputToko.value);
+        });
+
+        inputToko.addEventListener('blur', () => {
+            // Beri waktu untuk klik item saran (mousedown sudah preventDefault,
+            // jadi ini hanya jaga-jaga).
+            setTimeout(() => {
+                sembunyikanSaran();
+                const val = inputToko.value;
+                if (!val.trim()) {
+                    selectedToko = null;
+                    return;
+                }
+                const t = resolveToko(val);
+                if (t) {
+                    terapkanKecocokan(t, true);
+                } else if (masterToko.length) {
+                    terapkanKecocokan(null, false);
+                }
+            }, 120);
+        });
+
+        inputToko.addEventListener('keydown', (ev) => {
+            if (suggestBox.hidden) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    inputNominal.focus();
+                }
+                return;
+            }
+            if (ev.key === 'ArrowDown') {
+                ev.preventDefault();
+                activeSuggestion = Math.min(activeSuggestion + 1, suggestionItems.length - 1);
+                tandaiSaran();
+            } else if (ev.key === 'ArrowUp') {
+                ev.preventDefault();
+                activeSuggestion = Math.max(activeSuggestion - 1, 0);
+                tandaiSaran();
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                if (activeSuggestion >= 0 && suggestionItems[activeSuggestion]) {
+                    pilihToko(suggestionItems[activeSuggestion]);
+                } else {
+                    const t = resolveToko(inputToko.value);
+                    if (t) pilihToko(t);
+                }
+            } else if (ev.key === 'Escape') {
+                sembunyikanSaran();
+            }
+        });
+
+        document.addEventListener('click', (ev) => {
+            if (!suggestBox.contains(ev.target) && ev.target !== inputToko) {
+                sembunyikanSaran();
+            }
+        });
+
+        // ====== TAMBAH DATA ======
+        $('btnTambah').addEventListener('click', () => {
+            const tanggal = inputTanggal.value;
+            const namaInput = inputToko.value.trim();
+            const nominal = parseFloat(inputNominal.value);
+
+            if (!tanggal) {
+                alert('Pilih tanggal transaksi terlebih dahulu.');
+                inputTanggal.focus();
+                return;
+            }
+            if (!namaInput) {
+                alert('Ketik atau pilih nama toko terlebih dahulu.');
+                inputToko.focus();
+                return;
+            }
+            if (!masterToko.length) {
+                alert('Data toko belum dimuat dari Supabase. Muat ulang dulu di bagian 2.');
+                return;
+            }
+
+            let t = selectedToko;
+            if (!t || normalize(t.nama_toko) !== normalize(namaInput)) {
+                t = resolveToko(namaInput);
+            }
+            if (!t) {
+                alert('Toko "' + namaInput + '" tidak ditemukan di database.\n' +
+                      'Pilih nama toko dari daftar saran yang muncul.');
+                inputToko.focus();
+                return;
+            }
+            terapkanKecocokan(t, true);
+
+            if (isNaN(nominal) || nominal <= 0) {
+                alert('Masukkan nominal yang valid (lebih dari 0).');
+                inputNominal.focus();
                 return;
             }
 
             listDataRekap.push({
                 tanggal: tanggal,
-                cabang: tokoData.nama_toko,
-                regional: tokoData.regional,
+                nama_toko: t.nama_toko,
+                cabang: t.cabang || '',
+                regional: t.regional || '',
                 nominal: nominal
             });
 
-            renderTabelPreview();
+            renderPreview();
 
-            document.getElementById('inputCariToko').value = '';
-            document.getElementById('inputNominalSingle').value = '';
-            document.getElementById('infoRegional').textContent = '';
+            // Reset supaya input berikutnya cepat: tanggal tetap.
+            inputToko.value = '';
+            inputCabang.value = '';
+            inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
+            inputRegional.textContent = '—';
+            groupRegional.hidden = true;
+            inputNominal.value = '';
+            selectedToko = null;
+            inputToko.classList.remove('invalid');
+            infoToko.textContent = 'Mulai ketik nama toko.';
+            infoToko.className = 'hint';
+            inputToko.focus();
         });
 
-        function esc(s) {
-            return String(s).replace(/[&<>"']/g, c => ({
-                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[c]));
-        }
+        inputNominal.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                $('btnTambah').click();
+            }
+        });
 
-        function renderTabelPreview() {
+        // ====== PREVIEW ======
+        function renderPreview() {
             const tbody = document.querySelector('#tabelPreview tbody');
             tbody.innerHTML = '';
 
-            if (listDataRekap.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Belum ada data ditambahkan.</td></tr>';
+            if (!listDataRekap.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Belum ada data ditambahkan.</td></tr>';
+                $('infoTotal').textContent = '0 data • Rp 0';
                 return;
             }
 
             listDataRekap.forEach((item, index) => {
                 const tr = document.createElement('tr');
+                const cabangTampil = item.cabang || item.nama_toko;
+                const regional = item.regional
+                    ? '<span class="badge">' + esc(item.regional) + '</span>' : '';
                 tr.innerHTML = `
                     <td>${esc(item.tanggal)}</td>
-                    <td><strong>${esc(item.cabang)}</strong></td>
-                    <td><span class="badge">${esc(item.regional)}</span></td>
-                    <td>Rp ${item.nominal.toLocaleString('id-ID')}</td>
-                    <td><button onclick="hapusPreview(${index})" style="background:#e74c3c; color:white; border:none; padding:3px 8px; border-radius:3px; cursor:pointer;">Hapus</button></td>
+                    <td><strong>${esc(item.nama_toko)}</strong>${regional ? '<br>' + regional : ''}</td>
+                    <td>${esc(cabangTampil)}</td>
+                    <td>${rupiah(item.nominal)}</td>
+                    <td class="row-actions"><button type="button" onclick="hapusPreview(${index})">Hapus</button></td>
                 `;
                 tbody.appendChild(tr);
             });
+
+            const total = listDataRekap.reduce((s, it) => s + Number(it.nominal || 0), 0);
+            $('infoTotal').textContent = listDataRekap.length + ' data • ' + rupiah(total);
         }
 
         function hapusPreview(index) {
             listDataRekap.splice(index, 1);
-            renderTabelPreview();
+            renderPreview();
         }
 
-        document.getElementById('btnExport').addEventListener('click', function() {
-            if (listDataRekap.length === 0) {
+        $('btnReset').addEventListener('click', () => {
+            if (!listDataRekap.length) return;
+            if (!confirm('Kosongkan semua data di daftar preview?')) return;
+            listDataRekap = [];
+            renderPreview();
+        });
+
+        // Muat ulang data toko secara manual (dipakai setelah SQL perbaikan dijalankan).
+        $('btnMuatToko').addEventListener('click', () => {
+            muatDataToko(true);
+        });
+
+        // ====== TANGGAL & BULAN ======
+        inputTanggal.value = hariIni();
+
+        function sinkronBulan() {
+            if (!inputTanggal.value) return;
+            const d = new Date(inputTanggal.value + 'T00:00:00');
+            if (isNaN(d.getTime())) return;
+            selectBulan.value = String(d.getMonth());
+        }
+        inputTanggal.addEventListener('change', sinkronBulan);
+        sinkronBulan();
+
+        // ====== TEMPLATE ======
+        $('fileTemplate').addEventListener('change', (ev) => {
+            const file = ev.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                templateBuffer = new Uint8Array(e.target.result);
+                $('infoTemplate').textContent = '✔ Template dimuat: ' + file.name;
+                $('infoTemplate').className = 'hint ok';
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // ====== EXPORT EXCEL ======
+        $('btnExport').addEventListener('click', () => {
+            if (!listDataRekap.length) {
                 alert('Belum ada data rekap yang dimasukkan!');
                 return;
             }
-
             if (!templateBuffer) {
                 alert('Silakan upload file template Excel master terlebih dahulu!');
                 return;
             }
 
-            const selectBulan = document.getElementById('selectBulan');
             const namaBulan = selectBulan.options[selectBulan.selectedIndex].text.toUpperCase();
-            const bulanIndex = parseInt(selectBulan.value);
-            const tahunAktif = new Date().getFullYear();
+            const bulanIndex = parseInt(selectBulan.value, 10);
+            const tahunAktif = inputTanggal.value
+                ? new Date(inputTanggal.value + 'T00:00:00').getFullYear()
+                : new Date().getFullYear();
 
             try {
                 const workbook = XLSX.read(templateBuffer, { type: 'array' });
                 const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
+                if (!worksheet) throw new Error('Sheet untuk bulan itu tidak ditemukan di template.');
 
                 let berhasil = 0;
-                let dilewati = [];
+                const dilewati = [];
+
+                function normalHeader(v) {
+                    return normalize(v);
+                }
+
+                // Cari kolom di baris header (baris 4 Excel / index 3),
+                // cocokkan dengan cabang dulu, lalu nama toko.
+                function cariKolom(item) {
+                    const kandidat = [];
+                    if (item.cabang) kandidat.push(normalHeader(item.cabang));
+                    if (item.nama_toko) kandidat.push(normalHeader(item.nama_toko));
+                    if (item.nama_toko || item.cabang) {
+                        kandidat.push(normalHeader([item.nama_toko, item.cabang].filter(Boolean).join(' ')));
+                    }
+
+                    let terbaik = -1;
+                    let skorTerbaik = 0;
+
+                    for (let c = 1; c < 500; c++) {
+                        const cell = worksheet[XLSX.utils.encode_cell({ r: 3, c: c })];
+                        if (!cell || cell.v === undefined || cell.v === null) {
+                            // Toleransi satu sel kosong; berhenti jika 2 kosong berturut-turut.
+                            const n1 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 1 })];
+                            const n2 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 2 })];
+                            if ((!n1 || n1.v === undefined) && (!n2 || n2.v === undefined)) break;
+                            continue;
+                        }
+
+                        const header = normalHeader(cell.v);
+                        if (!header) continue;
+
+                        for (const cand of kandidat) {
+                            if (!cand) continue;
+                            let skor = 0;
+                            if (header === cand) skor = 100;
+                            else if (header.includes(cand) || cand.includes(header)) skor = 60;
+                            if (skor > skorTerbaik) {
+                                skorTerbaik = skor;
+                                terbaik = c;
+                                if (skor === 100) break;
+                            }
+                        }
+                        if (skorTerbaik === 100) break;
+                    }
+                    return terbaik;
+                }
 
                 listDataRekap.forEach(item => {
-                    // Parse manual (YYYY-MM-DD) agar tidak terpengaruh zona waktu
-                    const [thn, bln, hari] = item.tanggal.split('-').map(Number);
+                    const bagian = item.tanggal.split('-').map(Number);
+                    const tahun = bagian[0];
+                    const bln = bagian[1];
+                    const hari = bagian[2];
+
                     if (bln - 1 !== bulanIndex) {
-                        dilewati.push(`${item.cabang} (${item.tanggal}): beda bulan`);
+                        dilewati.push(`${item.nama_toko} (${item.tanggal}): beda bulan`);
+                        return;
+                    }
+                    if (tahun !== tahunAktif) {
+                        // Tetap proses, tapi beri info tahun di nama file.
+                    }
+
+                    // Baris Excel 5 untuk tanggal 1 (index 0-based: 3 + hari)
+                    const rowIdx = 3 + hari;
+                    if (rowIdx < 4) {
+                        dilewati.push(`${item.nama_toko}: tanggal tidak valid`);
                         return;
                     }
 
-                    const rowIdx = 3 + hari; // baris Excel 5 untuk tanggal 1 (index 0-based)
-
-                    // Cari kolom cabang di baris header (baris 4 Excel)
-                    let colIndex = -1;
-                    for (let c = 1; c < 500; c++) {
-                        const cell = worksheet[XLSX.utils.encode_cell({ r: 3, c: c })];
-                        if (!cell || cell.v === undefined) {
-                            // beri toleransi sel kosong tunggal; berhenti jika 3 kosong berturut-turut
-                            const next1 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 1 })];
-                            const next2 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 2 })];
-                            if (!next1 && !next2) break;
-                            continue;
-                        }
-                        if (String(cell.v).trim().toUpperCase() === item.cabang.trim().toUpperCase()) {
-                            colIndex = c;
-                            break;
-                        }
-                    }
-
+                    const colIndex = cariKolom(item);
                     if (colIndex === -1) {
-                        dilewati.push(`${item.cabang}: kolom tidak ada di template`);
+                        dilewati.push(`${item.nama_toko}${item.cabang ? ' / ' + item.cabang : ''}: kolom tidak ada di template`);
                         return;
                     }
 
@@ -381,15 +1339,14 @@
                     const sel = worksheet[addr];
                     const nilaiSebelumnya = sel ? (Number(sel.v) || 0) : 0;
 
-                    // Ubah nilai tanpa menghapus format sel di template
+                    // Ubah nilai tanpa menghapus format sel template.
                     const barisBaru = sel || {};
                     barisBaru.t = 'n';
-                    barisBaru.v = nilaiSebelumnya + item.nominal;
+                    barisBaru.v = nilaiSebelumnya + Number(item.nominal);
                     delete barisBaru.f;
                     delete barisBaru.w;
                     worksheet[addr] = barisBaru;
 
-                    // Perluas range sheet bila perlu
                     const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
                     if (rowIdx > range.e.r) range.e.r = rowIdx;
                     if (colIndex > range.e.c) range.e.c = colIndex;
@@ -407,9 +1364,30 @@
                 alert(pesan);
             } catch (err) {
                 console.error(err);
-                alert('Terjadi kesalahan saat memproses file Excel: ' + err.message);
+                alert('Terjadi kesalahan saat memproses file Excel: ' + (err.message || err));
             }
         });
+
+        // ====== MULAI ======
+        renderPreview();
+        muatDataToko(false);
+
+        // Debug/uji dari console browser (tidak dipakai aplikasi sehari-hari).
+        window.rekaporder = {
+            get masterToko() { return masterToko; },
+            setMasterToko(list) {
+                masterToko = buangDuplikat(list.map(t => ({
+                    nama_toko: t.nama_toko || t.nama || '',
+                    cabang: t.cabang || '',
+                    regional: t.regional || '',
+                    raw: t
+                })).filter(t => t.nama_toko));
+                setStatus('✔ Mode uji — ' + masterToko.length + ' toko dimuat.', 'ok');
+            },
+            resolveToko,
+            cariKandidat,
+            normalize
+        };
     </script>
 </body>
 </html>
