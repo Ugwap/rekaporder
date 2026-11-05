@@ -98,6 +98,13 @@
         }
         .hint.ok { color: var(--hijau-tua); font-weight: 600; }
         .hint.err { color: var(--merah); font-weight: 600; }
+        .hint code {
+            background: #eef2f7;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            color: #334155;
+        }
         .readonly-pill {
             padding: 9px 12px;
             border-radius: 6px;
@@ -286,9 +293,26 @@
             <button type="button" id="btnTambah" class="btn btn-success">+ Tambah ke Daftar</button>
         </div>
 
-        <!-- 2. Periode & template -->
+        <!-- 2. Sumber data toko -->
         <div class="card">
-            <h3>2. Periode &amp; Template Excel</h3>
+            <h3>2. Data Toko</h3>
+
+            <div class="form-group">
+                <label for="fileTokoCsv">Upload CSV Data Toko (opsional)</label>
+                <input type="file" id="fileTokoCsv" accept=".csv,.txt,text/csv">
+                <small id="infoTokoCsv" class="hint">
+                    Format: <code>nama toko,cabang</code> — satu toko per baris.<br>
+                    Contoh: <code>Pekayon,BEKASI</code><br>
+                    Baris judul <code>nama_toko,cabang</code> juga boleh.
+                </small>
+            </div>
+
+            <button type="button" id="btnMuatToko" class="btn btn-ghost">↻ Muat ulang data toko dari Supabase</button>
+        </div>
+
+        <!-- 3. Periode & template -->
+        <div class="card">
+            <h3>3. Periode &amp; Template Excel</h3>
             <div class="form-group">
                 <label for="selectBulan">Bulan Rekap:</label>
                 <select id="selectBulan">
@@ -311,12 +335,11 @@
                 <input type="file" id="fileTemplate" accept=".xlsx, .xls">
                 <small id="infoTemplate" class="hint">Belum ada template dimuat.</small>
             </div>
-            <button type="button" id="btnMuatToko" class="btn btn-ghost">↻ Muat ulang data toko dari Supabase</button>
         </div>
 
-        <!-- 3. Preview -->
+        <!-- 4. Preview -->
         <div class="card">
-            <h3>3. Preview Data Tersimpan</h3>
+            <h3>4. Preview Data Tersimpan</h3>
             <div class="table-responsive">
                 <table id="tabelPreview">
                     <thead>
@@ -348,6 +371,7 @@
         const SUPABASE_URL = 'https://vnvxknlpwjquzbmrzaju.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b';
         const TABLE_TOKO = 'TOKO';
+        const CSV_TOKO_KEY = 'rekaporder_csv_toko_v1';
 
         // Data cadangan dari DATATOKO.csv (202 toko). Dipakai kalau tabel TOKO
         // di Supabase belum bisa dibaca (mis. RLS belum mengizinkan anon).
@@ -548,28 +572,143 @@
             return nama.join(', ');
         }
 
-        function dataTokoCadangan() {
-            const hasil = [];
-            DATA_TOKO_CADANGAN_CSV.split('\n').forEach(line => {
-                const teks = line.trim();
-                if (!teks) return;
-                const koma = teks.indexOf(',');
-                if (koma < 0) return;
-                const nama = teks.slice(0, koma).trim();
-                const cabang = teks.slice(koma + 1).trim();
-                if (nama) {
-                    hasil.push({
-                        nama_toko: nama,
-                        cabang: cabang,
-                        regional: '',
-                        raw: null
-                    });
-                }
+        // ====== PARSER CSV TOKO ======
+        // Format yang didukung:
+        //   Pekayon,BEKASI
+        //   Pekayon;BEKASI
+        //   nama_toko,cabang,regional   <-- baris judul (dilewati)
+        //   "Nama, dengan koma",CABANG  <-- tanda kutip didukung
+        function deteksiPemisahCsv(teks) {
+            const contoh = teks.split(/\r?\n/).filter(l => l.trim()).slice(0, 5);
+            let koma = 0;
+            let titikKoma = 0;
+            contoh.forEach(l => {
+                koma += (l.match(/,/g) || []).length;
+                titikKoma += (l.match(/;/g) || []).length;
             });
+            return titikKoma > koma ? ';' : ',';
+        }
+
+        function pecahBarisCsv(line, pemisah) {
+            const hasil = [];
+            let cur = '';
+            let dalamKutip = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (dalamKutip) {
+                    if (ch === '"') {
+                        if (line[i + 1] === '"') { cur += '"'; i++; }
+                        else dalamKutip = false;
+                    } else {
+                        cur += ch;
+                    }
+                } else if (ch === '"') {
+                    dalamKutip = true;
+                } else if (ch === pemisah) {
+                    hasil.push(cur);
+                    cur = '';
+                } else {
+                    cur += ch;
+                }
+            }
+            hasil.push(cur);
+            return hasil.map(s => clean(s));
+        }
+
+        function apakahJudulCsv(sel) {
+            const bagian = sel.map(s => normalize(s));
+            const nama = ['NAMA TOKO', 'NAMATOKO', 'TOKO', 'NAMA', 'STORE', 'STORE NAME', 'OUTLET'];
+            if (nama.includes(bagian[0])) return true;
+            if (bagian.includes('CABANG') || bagian.includes('BRANCH')) return true;
+            if (bagian.includes('REGIONAL') || bagian.includes('WILAYAH')) return true;
+            return false;
+        }
+
+        function bacaCsvToko(teks) {
+            if (!teks) return [];
+            const bersih = String(teks).replace(/^\uFEFF/, '');
+            const pemisah = deteksiPemisahCsv(bersih);
+            const hasil = [];
+            let barisPertama = true;
+
+            bersih.split(/\r?\n/).forEach(line => {
+                if (!line.trim()) return;
+                const sel = pecahBarisCsv(line, pemisah);
+                if (barisPertama) {
+                    barisPertama = false;
+                    if (apakahJudulCsv(sel)) return;
+                }
+                const nama = clean(sel[0] || '');
+                if (!nama) return;
+                hasil.push({
+                    nama_toko: nama,
+                    cabang: clean(sel[1] || ''),
+                    regional: clean(sel[2] || ''),
+                    raw: null
+                });
+            });
+
             return buangDuplikat(hasil);
         }
 
+        function dataTokoCadangan() {
+            return bacaCsvToko(DATA_TOKO_CADANGAN_CSV);
+        }
+
+        // ====== CSV TOKO LOKAL (disimpan di browser) ======
+        function simpanCsvToko(teks) {
+            try {
+                localStorage.setItem(CSV_TOKO_KEY, teks);
+            } catch (err) {
+                console.warn('Gagal menyimpan CSV toko ke browser:', err);
+            }
+        }
+
+        function ambilCsvToko() {
+            try {
+                return localStorage.getItem(CSV_TOKO_KEY) || '';
+            } catch (err) {
+                return '';
+            }
+        }
+
+        function pakaiCsvToko(teks, namaFile) {
+            const daftar = bacaCsvToko(teks);
+            if (!daftar.length) return false;
+
+            masterToko = daftar;
+            currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
+            simpanCsvToko(teks);
+
+            setStatus('✔ CSV dimuat — ' + masterToko.length + ' toko' +
+                (namaFile ? ' (' + namaFile + ')' : '') + '.', 'ok');
+            elBanner.hidden = true;
+
+            if (inputToko.value.trim()) {
+                terapkanKecocokan(resolveToko(inputToko.value), false);
+            }
+            return true;
+        }
+
         function pakaiDataCadangan(alasan) {
+            // Kalau pengguna pernah upload CSV sendiri, pakai itu dulu.
+            const csvLokal = ambilCsvToko();
+            if (csvLokal) {
+                const daftar = bacaCsvToko(csvLokal);
+                if (daftar.length) {
+                    masterToko = daftar;
+                    currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
+                    setStatus('⚠ CSV lokal — ' + masterToko.length +
+                        ' toko (Supabase belum terbaca).', 'warn');
+                    tampilkanBanner('cadangan');
+                    if (inputToko.value.trim()) {
+                        terapkanKecocokan(resolveToko(inputToko.value), false);
+                    }
+                    if (alasan) console.warn('Supabase gagal, memakai CSV lokal:', alasan);
+                    return;
+                }
+            }
+
             masterToko = dataTokoCadangan();
             currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
             setStatus('⚠ Data cadangan — ' + masterToko.length +
@@ -579,6 +718,29 @@
                 terapkanKecocokan(resolveToko(inputToko.value), false);
             }
             if (alasan) console.warn('Memakai data cadangan:', alasan);
+        }
+
+        const TABEL_TOKO_KANDIDAT = [TABLE_TOKO, 'TOKO_BARU', 'TOKO2', 'toko'];
+
+        // Coba beberapa nama tabel, supaya kalau pengguna membuat tabel baru
+        // lewat Table Editor / import CSV (mis. TOKO_BARU), aplikasi tetap bisa.
+        async function ambilDataTokoSupabase() {
+            let errorTerakhir = null;
+            for (const tabel of TABEL_TOKO_KANDIDAT) {
+                try {
+                    const rows = await ambilSemuaBaris(tabel);
+                    if (!rows.length) continue;
+                    const mapped = petakanBaris(rows);
+                    if (!mapped.length) {
+                        errorTerakhir = new Error('Kolom tabel ' + tabel + ' tidak dikenali');
+                        continue;
+                    }
+                    return { tabel, mapped };
+                } catch (err) {
+                    errorTerakhir = err;
+                }
+            }
+            return { tabel: null, mapped: [], error: errorTerakhir };
         }
 
         async function muatDataToko(showAlert) {
@@ -597,33 +759,25 @@
             }
 
             try {
-                const rows = await ambilSemuaBaris(TABLE_TOKO);
+                const hasil = await ambilDataTokoSupabase();
 
-                if (!rows.length) {
-                    pakaiDataCadangan('tabel TOKO mengembalikan 0 baris');
+                if (!hasil.mapped.length) {
+                    pakaiDataCadangan(hasil.error
+                        ? (hasil.error.message || hasil.error)
+                        : 'tidak ada tabel toko berisi data');
                     if (showAlert) {
-                        alert('Tabel TOKO belum bisa dibaca dari Supabase (0 baris).\n\n' +
-                              'Aplikasi sementara memakai data cadangan DATATOKO.csv (' +
-                              masterToko.length + ' toko).\n' +
-                              'Ikuti petunjuk "Cara memperbaiki tabel TOKO" di halaman ini.');
+                        alert('Data toko belum bisa dibaca dari Supabase.\n\n' +
+                              'Aplikasi memakai ' + masterToko.length + ' toko dari ' +
+                              (ambilCsvToko() ? 'CSV yang Anda upload' : 'data cadangan') + '.\n\n' +
+                              'Anda juga bisa upload CSV toko di bagian 2 (format: nama toko,cabang).');
                     }
                     return;
                 }
 
-                const mapped = petakanBaris(rows);
-                if (!mapped.length) {
-                    pakaiDataCadangan('kolom tabel TOKO tidak dikenali');
-                    if (showAlert) {
-                        alert('Tabel TOKO berisi data, tetapi kolom nama toko/cabang tidak dikenali.\n' +
-                              'Aplikasi memakai data cadangan. Perbaiki struktur tabel lewat SQL di halaman ini.');
-                    }
-                    return;
-                }
-
-                masterToko = buangDuplikat(mapped);
+                masterToko = buangDuplikat(hasil.mapped);
                 const infoKolom = labelKolom();
-                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat' +
-                    (infoKolom ? ' (' + infoKolom + ')' : '') + '.', 'ok');
+                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat dari tabel ' +
+                    hasil.tabel + (infoKolom ? ' (' + infoKolom + ')' : '') + '.', 'ok');
                 elBanner.hidden = true;
 
                 // Kalau input sudah terisi, coba cocokkan ulang.
@@ -662,6 +816,9 @@
                         <p class="muted">SQL ini <b>tidak menghapus data</b>. Kolom lama hasil impor CSV
                            diganti namanya menjadi <code>nama_toko</code> dan <code>cabang</code>,
                            lalu 202 toko cadangan hanya dimasukkan kalau tabel masih kosong.</p>
+                        <p class="muted">Tidak mau menjalankan SQL? Upload saja CSV toko di bagian
+                           <b>2. Data Toko</b> (format <code>nama toko,cabang</code>). Aplikasi langsung
+                           memakai data itu tanpa menunggu Supabase.</p>
                     </details>`;
             } else if (jenis === 'kolom') {
                 html = `
@@ -1211,6 +1368,34 @@ notify pgrst, 'reload schema';
             muatDataToko(true);
         });
 
+        // ====== CSV DATA TOKO ======
+        $('fileTokoCsv').addEventListener('change', (ev) => {
+            const file = ev.target.files[0];
+            if (!file) return;
+
+            const info = $('infoTokoCsv');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const teks = String(e.target.result || '');
+                    if (!pakaiCsvToko(teks, file.name)) {
+                        info.textContent = '⚠ CSV tidak berisi data toko. Format: nama toko,cabang';
+                        info.className = 'hint err';
+                        return;
+                    }
+                    info.textContent = '✔ ' + masterToko.length + ' toko dimuat dari ' +
+                        file.name + ' (tersimpan di browser).';
+                    info.className = 'hint ok';
+                    inputToko.focus();
+                } catch (err) {
+                    console.error('Gagal membaca CSV toko:', err);
+                    info.textContent = '⚠ Gagal membaca CSV: ' + (err.message || err);
+                    info.className = 'hint err';
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        });
+
         // ====== TANGGAL & BULAN ======
         inputTanggal.value = hariIni();
 
@@ -1386,7 +1571,9 @@ notify pgrst, 'reload schema';
             },
             resolveToko,
             cariKandidat,
-            normalize
+            normalize,
+            bacaCsvToko,
+            pakaiCsvToko
         };
     </script>
 </body>

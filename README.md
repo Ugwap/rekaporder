@@ -10,7 +10,7 @@ mengekspornya ke template Excel. Semua data aplikasi ada di dalam
 
 ## Alur pemakaian
 
-1. **Pilih tanggal.** Bulan rekap di bagian 2 otomatis mengikuti tanggal.
+1. **Pilih tanggal.** Bulan rekap di bagian 3 otomatis mengikuti tanggal.
 2. **Ketik nama toko.** Daftar saran muncul dari database. Nama yang salah
    ketik otomatis dibetulkan saat Tab/klik keluar (mis. `anyr` → `Anyer - 2`).
    Nama yang masih ambigu (mis. `a` atau `cilegon`) tidak dipaksa, tinggal
@@ -23,7 +23,7 @@ mengekspornya ke template Excel. Semua data aplikasi ada di dalam
 
 ### Export Excel
 
-- Upload dulu file template master (`.xlsx`) di bagian 2.
+- Upload dulu file template master (`.xlsx`) di bagian 3.
 - Pilih bulan pada `selectBulan` (tersinkron dari tanggal).
 - Sheet yang dipakai adalah sheet ke-`bulan+1` di workbook template.
 - Nominal ditulis di **baris 4 (header) → cari kolom cabang/nama toko** dan
@@ -51,11 +51,47 @@ Tabel `TOKO` idealnya punya kolom:
 | `cabang`    | cabang/wilayah, mis. `CILEGON`     |
 | `regional`  | opsional                           |
 
-Saat halaman dibuka, aplikasi mencoba membaca `TOKO` lebih dulu. Kalau tabel
-belum bisa dibaca (RLS/kolom salah), aplikasi otomatis memakai **data
+Saat halaman dibuka, aplikasi mencoba membaca `TOKO` lebih dulu, lalu
+`TOKO_BARU` / `TOKO2` / `toko` kalau tabel pertama kosong atau tidak ada. Kalau
+semuanya gagal, aplikasi memakai **CSV yang pernah di-upload** atau **data
 cadangan `DATATOKO.csv` (202 toko)** yang sudah ditanam di `index.html`.
-Status di header akan bertuliskan **“Data cadangan”** dan muncul banner
-kuning berisi tombol **⬇ Unduh SQL perbaikan**.
+Status di header akan bertuliskan **“Data cadangan”** / **“CSV lokal”** dan
+muncul banner kuning berisi tombol **⬇ Unduh SQL perbaikan**.
+
+### Upload CSV data toko (tanpa Supabase)
+
+Di bagian **2. Data Toko**, klik **Upload CSV Data Toko**. Formatnya:
+
+```csv
+nama toko,cabang
+Pekayon,BEKASI
+Bintara,BEKASI
+Anyer - 2,CILEGON
+```
+
+- Satu toko per baris, urutan kolom: **nama toko, cabang**.
+- Baris judul **boleh ada** (`nama_toko,cabang,regional`) atau **tidak ada**.
+- Pemisah boleh koma (`,`) atau titik koma (`;`).
+- Nama yang mengandung koma harus diapit tanda kutip:
+  `"Toko, Dengan Koma",CILEGON`.
+- Encoding: UTF-8.
+- CSV disimpan di browser (localStorage), jadi tetap dipakai setelah refresh
+  dan otomatis menjadi cadangan kalau Supabase tidak bisa dibaca.
+
+### Format CSV untuk import ke Supabase
+
+Kalau ingin mengisi tabel lewat **Table Editor → Import data from CSV**, file
+harus punya baris judul yang **sama persis** dengan nama kolom tabel:
+
+```csv
+nama_toko,cabang,regional
+Anyer - 2,CILEGON,
+Pekayon,BEKASI,
+```
+
+Lalu pastikan tabelnya punya kolom `nama_toko`, `cabang`, dan `regional`
+(atau jalankan dulu `perbaiki-toko.sql`). Cara paling aman tetap menjalankan
+SQL perbaikan karena sekaligus mengatur RLS dan mengisi 202 toko.
 
 ### Memperbaiki tabel TOKO (sekali saja)
 
