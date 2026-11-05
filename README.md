@@ -51,12 +51,12 @@ Tabel `TOKO` idealnya punya kolom:
 | `cabang`    | cabang/wilayah, mis. `CILEGON`     |
 | `regional`  | opsional                           |
 
-Saat halaman dibuka, aplikasi mencoba membaca `TOKO` lebih dulu, lalu
-`TOKO_BARU` / `TOKO2` / `toko` kalau tabel pertama kosong atau tidak ada. Kalau
-semuanya gagal, aplikasi memakai **CSV yang pernah di-upload** atau **data
-cadangan `DATATOKO.csv` (202 toko)** yang sudah ditanam di `index.html`.
-Status di header akan bertuliskan **“Data cadangan”** / **“CSV lokal”** dan
-muncul banner kuning berisi tombol **⬇ Unduh SQL perbaikan**.
+Saat halaman dibuka, aplikasi mencoba membaca `TOKO` lebih dulu. Kalau tabel
+belum bisa dibaca (RLS/kolom salah), aplikasi memakai **CSV yang pernah
+di-upload** atau **data cadangan `DATATOKO.csv` (202 toko)** yang sudah
+ditanam di `index.html`. Status di header akan bertuliskan **“Data cadangan”**
+/ **“CSV lokal”** dan muncul banner kuning berisi tombol
+**⬇ Unduh SQL perbaikan**.
 
 ### Upload CSV data toko (tanpa Supabase)
 
@@ -91,7 +91,8 @@ Pekayon,BEKASI,
 
 Lalu pastikan tabelnya punya kolom `nama_toko`, `cabang`, dan `regional`
 (atau jalankan dulu `perbaiki-toko.sql`). Cara paling aman tetap menjalankan
-SQL perbaikan karena sekaligus mengatur RLS dan mengisi 202 toko.
+SQL perbaikan karena sekaligus mengatur RLS dan mengisi 202 toko. Kalau ingin
+memakai nama tabel lain, ubah konstanta `TABLE_TOKO` di `index.html`.
 
 ### Memperbaiki tabel TOKO (sekali saja)
 

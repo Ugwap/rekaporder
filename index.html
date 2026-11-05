@@ -720,29 +720,6 @@
             if (alasan) console.warn('Memakai data cadangan:', alasan);
         }
 
-        const TABEL_TOKO_KANDIDAT = [TABLE_TOKO, 'TOKO_BARU', 'TOKO2', 'toko'];
-
-        // Coba beberapa nama tabel, supaya kalau pengguna membuat tabel baru
-        // lewat Table Editor / import CSV (mis. TOKO_BARU), aplikasi tetap bisa.
-        async function ambilDataTokoSupabase() {
-            let errorTerakhir = null;
-            for (const tabel of TABEL_TOKO_KANDIDAT) {
-                try {
-                    const rows = await ambilSemuaBaris(tabel);
-                    if (!rows.length) continue;
-                    const mapped = petakanBaris(rows);
-                    if (!mapped.length) {
-                        errorTerakhir = new Error('Kolom tabel ' + tabel + ' tidak dikenali');
-                        continue;
-                    }
-                    return { tabel, mapped };
-                } catch (err) {
-                    errorTerakhir = err;
-                }
-            }
-            return { tabel: null, mapped: [], error: errorTerakhir };
-        }
-
         async function muatDataToko(showAlert) {
             setStatus('Memuat data toko...', 'loading');
             elBanner.hidden = true;
@@ -759,12 +736,10 @@
             }
 
             try {
-                const hasil = await ambilDataTokoSupabase();
+                const rows = await ambilSemuaBaris(TABLE_TOKO);
 
-                if (!hasil.mapped.length) {
-                    pakaiDataCadangan(hasil.error
-                        ? (hasil.error.message || hasil.error)
-                        : 'tidak ada tabel toko berisi data');
+                if (!rows.length) {
+                    pakaiDataCadangan('tabel TOKO mengembalikan 0 baris');
                     if (showAlert) {
                         alert('Data toko belum bisa dibaca dari Supabase.\n\n' +
                               'Aplikasi memakai ' + masterToko.length + ' toko dari ' +
@@ -774,10 +749,22 @@
                     return;
                 }
 
-                masterToko = buangDuplikat(hasil.mapped);
+                const mapped = petakanBaris(rows);
+                if (!mapped.length) {
+                    pakaiDataCadangan('kolom tabel TOKO tidak dikenali');
+                    if (showAlert) {
+                        alert('Tabel TOKO berisi data, tetapi kolom nama toko/cabang tidak dikenali.\n' +
+                              'Aplikasi memakai ' + masterToko.length + ' toko dari ' +
+                              (ambilCsvToko() ? 'CSV yang Anda upload' : 'data cadangan') + '.\n\n' +
+                              'Perbaiki struktur tabel lewat SQL di halaman ini, atau upload CSV toko.');
+                    }
+                    return;
+                }
+
+                masterToko = buangDuplikat(mapped);
                 const infoKolom = labelKolom();
-                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat dari tabel ' +
-                    hasil.tabel + (infoKolom ? ' (' + infoKolom + ')' : '') + '.', 'ok');
+                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat' +
+                    (infoKolom ? ' (' + infoKolom + ')' : '') + '.', 'ok');
                 elBanner.hidden = true;
 
                 // Kalau input sudah terisi, coba cocokkan ulang.
