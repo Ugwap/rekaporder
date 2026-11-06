@@ -1554,7 +1554,7 @@ notify pgrst, 'reload schema';
             ws.getColumn(1).width = 4.3;
             ws.getColumn(2).width = 14.6;
             for (let c = 3; c <= kolomTerakhir; c++) {
-                ws.getColumn(c).width = 20;
+                ws.getColumn(c).width = 22;
             }
 
             // Kop surat Villa Parfum (kiri atas)
@@ -1602,7 +1602,7 @@ notify pgrst, 'reload schema';
                 ws.mergeCells(hdr, 2, hdr + 1, 2);
                 const selTgl = ws.getRow(hdr).getCell(2);
                 selTgl.value = 'TGL';
-                selTgl.font = { name: FONT_EXCEL, size: 11, bold: true };
+                selTgl.font = { name: FONT_EXCEL, size: 11 };
                 selTgl.alignment = { horizontal: 'center', vertical: 'middle' };
 
                 // Header regional (merge di atas kolom toko)
@@ -1623,13 +1623,13 @@ notify pgrst, 'reload schema';
                 g.toko.forEach((t, i) => {
                     const cell = ws.getRow(hdr + 1).getCell(cAwal + i);
                     cell.value = String(t.nama_toko || '').toUpperCase();
-                    cell.font = { name: FONT_EXCEL, size: 11, bold: true };
+                    cell.font = { name: FONT_EXCEL, size: 11 };
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.toko } };
                 });
 
                 ws.getRow(hdr).height = 20;
-                ws.getRow(hdr + 1).height = 28;
+                ws.getRow(hdr + 1).height = 30;
 
                 // Baris tanggal + nominal
                 const rAwal = hdr + 3;
