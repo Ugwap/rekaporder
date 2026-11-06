@@ -1,7 +1,7 @@
 # Rekap Order — Villa Parfum
 
-Aplikasi web satu halaman untuk mencatat rekap order bulanan per toko dan
-mengekspornya ke template Excel. Semua data aplikasi ada di dalam
+Aplikasi web satu halaman untuk mencatat rekap order per toko dan mengekspornya
+ke file Excel 12 bulan (satu sheet per bulan). Semua kode aplikasi ada di dalam
 `index.html`, jadi cukup di-deploy ke GitHub Pages.
 
 **Demo:** https://ugwap.github.io/rekaporder/
@@ -10,26 +10,50 @@ mengekspornya ke template Excel. Semua data aplikasi ada di dalam
 
 ## Alur pemakaian
 
-1. **Pilih tanggal.** Bulan rekap di bagian 3 otomatis mengikuti tanggal.
+1. **Pilih tanggal** transaksi di bagian 1.
 2. **Ketik nama toko.** Daftar saran muncul dari database. Nama yang salah
    ketik otomatis dibetulkan saat Tab/klik keluar (mis. `anyr` → `Anyer - 2`).
    Nama yang masih ambigu (mis. `a` atau `cilegon`) tidak dipaksa, tinggal
    pilih dari daftar.
-3. **Cabang terisi otomatis.** Cabang diambil dari database berdasarkan toko
-   yang dipilih (read-only).
+3. **Cabang terisi otomatis** dari data toko (read-only).
 4. **Isi nominal** lalu klik **+ Tambah ke Daftar**.
-5. Ulangi untuk toko/tanggal berikutnya, lalu klik **Download Rekap Excel
-   Bulanan**.
+5. Ulangi untuk toko/tanggal berikutnya.
+6. Pilih **Tahun Rekap**, lalu klik **Download Rekap Excel 12 Bulan**.
+
+### Input Toko Baru
+
+Bagian **2. Input Toko Baru** dipakai untuk menambah toko langsung ke database,
+tanpa upload CSV:
+
+- **Nama Toko** (wajib)
+- **Cabang** (wajib)
+- **Regional** (opsional — kalau kosong, pengelompokan memakai cabang)
+
+Klik **+ Simpan Toko ke Database**. Data langsung masuk ke tabel
+`public."TOKO"` di Supabase, lalu daftar toko di halaman ini ikut diperbarui.
+Toko dengan nama + cabang yang sama tidak bisa ditambahkan dua kali.
+
+Kalau database menolak (pesan *row-level security*), jalankan
+`perbaiki-toko.sql` sekali seperti dijelaskan di bawah, lalu klik
+**↻ Muat ulang data toko dari Supabase**.
 
 ### Export Excel
 
-- Upload dulu file template master (`.xlsx`) di bagian 3.
-- Pilih bulan pada `selectBulan` (tersinkron dari tanggal).
-- Sheet yang dipakai adalah sheet ke-`bulan+1` di workbook template.
-- Nominal ditulis di **baris 4 (header) → cari kolom cabang/nama toko** dan
-  **baris `4 + hari`** (tanggal 1 = baris 5). Nilai lama di sel ditambahkan,
-  format sel template tidak dihapus.
-- Nama file: `Rekap_Order_<BULAN>_<TAHUN>.xlsx`.
+- Hasil export selalu berisi **12 sheet**: `JANUARI` sampai `DESEMBER` untuk
+  tahun yang dipilih.
+- Setiap sheet memakai format rekap Villa Parfum:
+  - kop/logo di kiri atas,
+  - judul **REKAP PERMINTAAN BARANG TAHUN &lt;TAHUN&gt;**,
+  - nama bulan,
+  - blok **REGIONAL ...** berisi kolom nama toko,
+  - baris tanggal 1 sampai akhir bulan (format `dd-mmm-yy`),
+  - nominal rupiah (`Rp`) rata kanan,
+  - baris **TOTAL** berisi formula `SUM` per toko.
+- Data dikelompokkan per bulan → regional → toko → tanggal. Kalau ada beberapa
+  transaksi untuk toko dan tanggal yang sama, nominalnya dijumlahkan.
+- Hanya data dengan tahun yang dipilih dan toko yang terdaftar di database
+  yang dimasukkan. Data lain dilaporkan sebagai "dilewati" setelah export.
+- Nama file: `Rekap_Order_<TAHUN>.xlsx`.
 
 ---
 
@@ -43,56 +67,19 @@ SUPABASE_ANON_KEY = sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b
 Tabel             = public."TOKO"
 ```
 
-Tabel `TOKO` idealnya punya kolom:
+Kolom yang dipakai:
 
 | kolom       | keterangan                         |
 |-------------|------------------------------------|
 | `nama_toko` | nama toko, mis. `Anyer - 2`        |
 | `cabang`    | cabang/wilayah, mis. `CILEGON`     |
-| `regional`  | opsional                           |
+| `regional`  | opsional; kalau kosong pakai cabang |
 
-Saat halaman dibuka, aplikasi mencoba membaca `TOKO` lebih dulu. Kalau tabel
-belum bisa dibaca (RLS/kolom salah), aplikasi memakai **CSV yang pernah
-di-upload** atau **data cadangan `DATATOKO.csv` (202 toko)** yang sudah
-ditanam di `index.html`. Status di header akan bertuliskan **“Data cadangan”**
-/ **“CSV lokal”** dan muncul banner kuning berisi tombol
+Saat halaman dibuka, aplikasi membaca `TOKO` dari Supabase. Kalau tabel belum
+bisa dibaca (RLS/kolom salah), aplikasi memakai **data cadangan 202 toko** yang
+sudah ditanam di `index.html`. Status di header akan bertuliskan
+**“Data cadangan”** dan muncul banner kuning berisi tombol
 **⬇ Unduh SQL perbaikan**.
-
-### Upload CSV data toko (tanpa Supabase)
-
-Di bagian **2. Data Toko**, klik **Upload CSV Data Toko**. Formatnya:
-
-```csv
-nama toko,cabang
-Pekayon,BEKASI
-Bintara,BEKASI
-Anyer - 2,CILEGON
-```
-
-- Satu toko per baris, urutan kolom: **nama toko, cabang**.
-- Baris judul **boleh ada** (`nama_toko,cabang,regional`) atau **tidak ada**.
-- Pemisah boleh koma (`,`) atau titik koma (`;`).
-- Nama yang mengandung koma harus diapit tanda kutip:
-  `"Toko, Dengan Koma",CILEGON`.
-- Encoding: UTF-8.
-- CSV disimpan di browser (localStorage), jadi tetap dipakai setelah refresh
-  dan otomatis menjadi cadangan kalau Supabase tidak bisa dibaca.
-
-### Format CSV untuk import ke Supabase
-
-Kalau ingin mengisi tabel lewat **Table Editor → Import data from CSV**, file
-harus punya baris judul yang **sama persis** dengan nama kolom tabel:
-
-```csv
-nama_toko,cabang,regional
-Anyer - 2,CILEGON,
-Pekayon,BEKASI,
-```
-
-Lalu pastikan tabelnya punya kolom `nama_toko`, `cabang`, dan `regional`
-(atau jalankan dulu `perbaiki-toko.sql`). Cara paling aman tetap menjalankan
-SQL perbaikan karena sekaligus mengatur RLS dan mengisi 202 toko. Kalau ingin
-memakai nama tabel lain, ubah konstanta `TABLE_TOKO` di `index.html`.
 
 ### Memperbaiki tabel TOKO (sekali saja)
 
@@ -109,10 +96,25 @@ SQL tersebut **tidak menghapus data**:
   (`"Anyer - 2"` → `nama_toko`, `"CILEGON"` → `cabang`),
 - menambah kolom `nama_toko`, `cabang`, `regional` kalau belum ada,
 - melengkapi 202 toko cadangan yang belum ada (tanpa menghapus/menduplikasi),
-- membuat RLS policy baca + `grant select` untuk role `anon`,
+- membuat RLS policy **baca** dan **tambah** untuk role `anon`/`authenticated`,
+- memberi `grant select, insert` pada tabel,
 - meminta PostgREST memuat ulang schema cache (`notify pgrst`).
 
-Toko yang sudah ada tidak diduplikasi, dan data lama tetap utuh.
+### Import massal lewat Table Editor (opsional)
+
+Kalau ingin mengisi banyak toko sekaligus, file CSV untuk
+**Table Editor → Import data from CSV** harus punya baris judul yang sama
+persis dengan nama kolom tabel:
+
+```csv
+nama_toko,cabang,regional
+Anyer - 2,CILEGON,
+Pekayon,BEKASI,
+```
+
+Cara paling aman tetap menjalankan `perbaiki-toko.sql` karena sekaligus
+mengatur RLS dan mengisi 202 toko. Kalau ingin memakai nama tabel lain, ubah
+konstanta `TABLE_TOKO` di `index.html`.
 
 ---
 
@@ -126,8 +128,9 @@ python -m http.server 8766 --bind 127.0.0.1
 
 Tidak perlu build tool. Semua dependensi dimuat dari CDN:
 
-- SheetJS (`xlsx@0.18.5`) untuk baca/tulis Excel,
-- Supabase JS (`@supabase/supabase-js@2`) untuk baca tabel `TOKO`.
+- ExcelJS (`exceljs@4.4.0`) untuk membuat Excel lengkap dengan style, merge,
+  dan logo,
+- Supabase JS (`@supabase/supabase-js@2`) untuk baca/tambah tabel `TOKO`.
 
 ---
 
@@ -146,6 +149,6 @@ Setiap push ke `main` akan otomatis men-deploy ulang.
 ## Struktur file
 
 ```
-index.html   # seluruh aplikasi (UI, logika, data cadangan 202 toko)
+index.html   # seluruh aplikasi (UI, logika, logo, data cadangan 202 toko)
 README.md    # dokumentasi ini
 ```

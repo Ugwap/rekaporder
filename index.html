@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rekap Order Bulanan - Villa Parfum</title>
-    <!-- SheetJS untuk manipulasi Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS: membuat file Excel lengkap dengan style, merge, dan gambar -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -293,48 +293,46 @@
             <button type="button" id="btnTambah" class="btn btn-success">+ Tambah ke Daftar</button>
         </div>
 
-        <!-- 2. Sumber data toko -->
+        <!-- 2. Tambah toko baru langsung ke database -->
         <div class="card">
-            <h3>2. Data Toko</h3>
+            <h3>2. Input Toko Baru</h3>
 
             <div class="form-group">
-                <label for="fileTokoCsv">Upload CSV Data Toko (opsional)</label>
-                <input type="file" id="fileTokoCsv" accept=".csv,.txt,text/csv">
-                <small id="infoTokoCsv" class="hint">
-                    Format: <code>nama toko,cabang</code> — satu toko per baris.<br>
-                    Contoh: <code>Pekayon,BEKASI</code><br>
-                    Baris judul <code>nama_toko,cabang</code> juga boleh.
-                </small>
+                <label for="tokoBaruNama">Nama Toko <span class="req">*</span></label>
+                <input type="text" id="tokoBaruNama" autocomplete="off" spellcheck="false"
+                       placeholder="Contoh: Pekayon">
             </div>
+
+            <div class="form-group">
+                <label for="tokoBaruCabang">Cabang <span class="req">*</span></label>
+                <input type="text" id="tokoBaruCabang" autocomplete="off" spellcheck="false"
+                       placeholder="Contoh: BEKASI">
+            </div>
+
+            <div class="form-group">
+                <label for="tokoBaruRegional">Regional (opsional)</label>
+                <input type="text" id="tokoBaruRegional" autocomplete="off" spellcheck="false"
+                       placeholder="Kosongkan kalau sama dengan cabang">
+            </div>
+
+            <button type="button" id="btnSimpanToko" class="btn btn-success">+ Simpan Toko ke Database</button>
+            <small id="infoTokoBaru" class="hint">
+                Toko baru langsung masuk ke tabel <code>TOKO</code> di Supabase.
+            </small>
 
             <button type="button" id="btnMuatToko" class="btn btn-ghost">↻ Muat ulang data toko dari Supabase</button>
         </div>
 
-        <!-- 3. Periode & template -->
+        <!-- 3. Periode rekap -->
         <div class="card">
-            <h3>3. Periode &amp; Template Excel</h3>
+            <h3>3. Periode Rekap</h3>
             <div class="form-group">
-                <label for="selectBulan">Bulan Rekap:</label>
-                <select id="selectBulan">
-                    <option value="0">Januari</option>
-                    <option value="1">Februari</option>
-                    <option value="2">Maret</option>
-                    <option value="3">April</option>
-                    <option value="4">Mei</option>
-                    <option value="5">Juni</option>
-                    <option value="6">Juli</option>
-                    <option value="7">Agustus</option>
-                    <option value="8">September</option>
-                    <option value="9">Oktober</option>
-                    <option value="10">November</option>
-                    <option value="11">Desember</option>
-                </select>
+                <label for="inputTahun">Tahun Rekap:</label>
+                <input type="number" id="inputTahun" min="2000" max="2100" step="1">
             </div>
-            <div class="form-group">
-                <label for="fileTemplate">Upload Template Excel Master:</label>
-                <input type="file" id="fileTemplate" accept=".xlsx, .xls">
-                <small id="infoTemplate" class="hint">Belum ada template dimuat.</small>
-            </div>
+            <small class="hint">
+                Hasil export berisi <b>12 sheet</b> (JANUARI sampai DESEMBER) untuk tahun di atas.
+            </small>
         </div>
 
         <!-- 4. Preview -->
@@ -360,7 +358,7 @@
                 <span>Total data</span>
                 <span id="infoTotal">0 data • Rp 0</span>
             </div>
-            <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Excel Bulanan</button>
+            <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Excel 12 Bulan</button>
             <button type="button" id="btnReset" class="btn btn-ghost">Kosongkan Daftar</button>
         </div>
     </div>
@@ -371,7 +369,9 @@
         const SUPABASE_URL = 'https://vnvxknlpwjquzbmrzaju.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_fyxNidWq9fkGExXJNzad_w_V-_-XV-b';
         const TABLE_TOKO = 'TOKO';
-        const CSV_TOKO_KEY = 'rekaporder_csv_toko_v1';
+
+        // Logo / kop surat Villa Parfum (PNG 280x155) untuk header file Excel.
+        const LOGO_B64 = 'data:image/png;base64,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';
 
         // Data cadangan dari DATATOKO.csv (202 toko). Dipakai kalau tabel TOKO
         // di Supabase belum bisa dibaca (mis. RLS belum mengizinkan anon).
@@ -388,7 +388,6 @@
         // ====== STATE ======
         let masterToko = [];       // [{ nama_toko, cabang, regional, raw }]
         let listDataRekap = [];    // [{ tanggal, nama_toko, cabang, regional, nominal }]
-        let templateBuffer = null;
         let selectedToko = null;
         let suggestionItems = [];
         let activeSuggestion = -1;
@@ -405,7 +404,7 @@
         const infoToko = $('infoToko');
         const groupRegional = $('groupRegional');
         const inputRegional = $('inputRegional');
-        const selectBulan = $('selectBulan');
+        const inputTahun = $('inputTahun');
 
         // ====== UTIL ======
         function setStatus(teks, tipe) {
@@ -655,60 +654,9 @@
             return bacaCsvToko(DATA_TOKO_CADANGAN_CSV);
         }
 
-        // ====== CSV TOKO LOKAL (disimpan di browser) ======
-        function simpanCsvToko(teks) {
-            try {
-                localStorage.setItem(CSV_TOKO_KEY, teks);
-            } catch (err) {
-                console.warn('Gagal menyimpan CSV toko ke browser:', err);
-            }
-        }
-
-        function ambilCsvToko() {
-            try {
-                return localStorage.getItem(CSV_TOKO_KEY) || '';
-            } catch (err) {
-                return '';
-            }
-        }
-
-        function pakaiCsvToko(teks, namaFile) {
-            const daftar = bacaCsvToko(teks);
-            if (!daftar.length) return false;
-
-            masterToko = daftar;
-            currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
-            simpanCsvToko(teks);
-
-            setStatus('✔ CSV dimuat — ' + masterToko.length + ' toko' +
-                (namaFile ? ' (' + namaFile + ')' : '') + '.', 'ok');
-            elBanner.hidden = true;
-
-            if (inputToko.value.trim()) {
-                terapkanKecocokan(resolveToko(inputToko.value), false);
-            }
-            return true;
-        }
-
+        // ====== DATA CADANGAN ======
+        // Dipakai hanya kalau tabel TOKO di Supabase belum bisa dibaca.
         function pakaiDataCadangan(alasan) {
-            // Kalau pengguna pernah upload CSV sendiri, pakai itu dulu.
-            const csvLokal = ambilCsvToko();
-            if (csvLokal) {
-                const daftar = bacaCsvToko(csvLokal);
-                if (daftar.length) {
-                    masterToko = daftar;
-                    currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
-                    setStatus('⚠ CSV lokal — ' + masterToko.length +
-                        ' toko (Supabase belum terbaca).', 'warn');
-                    tampilkanBanner('cadangan');
-                    if (inputToko.value.trim()) {
-                        terapkanKecocokan(resolveToko(inputToko.value), false);
-                    }
-                    if (alasan) console.warn('Supabase gagal, memakai CSV lokal:', alasan);
-                    return;
-                }
-            }
-
             masterToko = dataTokoCadangan();
             currentColumns = { nameKey: 'nama_toko', branchKey: 'cabang', regionalKey: null };
             setStatus('⚠ Data cadangan — ' + masterToko.length +
@@ -742,9 +690,8 @@
                     pakaiDataCadangan('tabel TOKO mengembalikan 0 baris');
                     if (showAlert) {
                         alert('Data toko belum bisa dibaca dari Supabase.\n\n' +
-                              'Aplikasi memakai ' + masterToko.length + ' toko dari ' +
-                              (ambilCsvToko() ? 'CSV yang Anda upload' : 'data cadangan') + '.\n\n' +
-                              'Anda juga bisa upload CSV toko di bagian 2 (format: nama toko,cabang).');
+                              'Aplikasi memakai ' + masterToko.length + ' toko cadangan.\n\n' +
+                              'Periksa koneksi internet, lalu klik "Muat ulang data toko".');
                     }
                     return;
                 }
@@ -754,9 +701,8 @@
                     pakaiDataCadangan('kolom tabel TOKO tidak dikenali');
                     if (showAlert) {
                         alert('Tabel TOKO berisi data, tetapi kolom nama toko/cabang tidak dikenali.\n' +
-                              'Aplikasi memakai ' + masterToko.length + ' toko dari ' +
-                              (ambilCsvToko() ? 'CSV yang Anda upload' : 'data cadangan') + '.\n\n' +
-                              'Perbaiki struktur tabel lewat SQL di halaman ini, atau upload CSV toko.');
+                              'Aplikasi memakai ' + masterToko.length + ' toko cadangan.\n\n' +
+                              'Perbaiki struktur tabel lewat "Unduh SQL perbaikan" di halaman ini.');
                     }
                     return;
                 }
@@ -784,12 +730,12 @@
             if (jenis === 'cadangan') {
                 html = `
                     <strong>⚠ Data toko dari Supabase belum bisa dibaca.</strong>
-                    Aplikasi sementara memakai <b>data cadangan DATATOKO.csv</b>
-                    (<b>${masterToko.length} toko</b>) supaya input tetap bisa dipakai.
+                    Aplikasi sementara memakai <b>data cadangan (202 toko)</b>
+                    supaya input tetap bisa dipakai.
                     <br>
                     Penyebab paling umum: <b>RLS / hak akses anon</b> pada tabel
-                    <b>public."TOKO"</b>, atau kolom tabelnya masih memakai nama dari
-                    baris pertama CSV (mis. <code>"Anyer - 2"</code> dan <code>"CILEGON"</code>).
+                    <b>public."TOKO"</b>, atau kolom tabelnya belum memakai
+                    <code>nama_toko</code> dan <code>cabang</code>.
                     <details>
                         <summary>Cara memperbaiki (pemilik Supabase)</summary>
                         <ol>
@@ -800,13 +746,24 @@
                         </ol>
                         <button type="button" class="btn btn-mini" onclick="unduhSqlPerbaikan()">⬇ Unduh SQL perbaikan</button>
                         <button type="button" class="btn btn-mini" onclick="salinSql()">Salin SQL</button>
-                        <p class="muted">SQL ini <b>tidak menghapus data</b>. Kolom lama hasil impor CSV
-                           diganti namanya menjadi <code>nama_toko</code> dan <code>cabang</code>,
-                           lalu 202 toko cadangan dilengkapi otomatis kalau ada yang belum ada.</p>
-                        <p class="muted">Tidak mau menjalankan SQL? Upload saja CSV toko di bagian
-                           <b>2. Data Toko</b> (format <code>nama toko,cabang</code>). Aplikasi langsung
-                           memakai data itu tanpa menunggu Supabase.</p>
+                        <p class="muted">SQL ini <b>tidak menghapus data</b>. SQL juga mengaktifkan
+                           izin <b>baca</b> dan <b>tambah toko baru</b> untuk aplikasi.</p>
                     </details>`;
+            } else if (jenis === 'izin') {
+                html = `
+                    <strong>⚠ Toko belum bisa disimpan ke database.</strong>
+                    Tabel <b>TOKO</b> mengizinkan baca, tetapi belum mengizinkan
+                    <b>tambah data</b> (RLS). Jalankan SQL perbaikan sekali saja,
+                    lalu simpan toko lagi.
+                    <div style="margin-top:8px">
+                        <button type="button" class="btn btn-mini" onclick="unduhSqlPerbaikan()">⬇ Unduh SQL perbaikan</button>
+                        <button type="button" class="btn btn-mini" onclick="salinSql()">Salin SQL</button>
+                    </div>
+                    <ol>
+                        <li>Buka <b>Supabase → SQL Editor → New query</b>.</li>
+                        <li>Tempel isi <code>perbaiki-toko.sql</code>, lalu klik <b>Run</b>.</li>
+                        <li>Kembali ke halaman ini dan simpan toko lagi.</li>
+                    </ol>`;
             } else if (jenis === 'kolom') {
                 html = `
                     <strong>⚠ Kolom tabel TOKO tidak dikenali.</strong>
@@ -848,7 +805,7 @@ where table_schema = 'public'
         // - tidak menghapus data,
         // - mengganti nama kolom lama hasil impor CSV,
         // - melengkapi 202 toko yang belum ada (tanpa menghapus/menduplikasi),
-        // - memberi izin baca (RLS policy + grant) untuk anon.
+        // - memberi izin baca + tambah toko (RLS policy + grant) untuk anon.
         function buatSqlPerbaikan() {
             const daftar = dataTokoCadangan();
             const values = daftar.map(t =>
@@ -916,7 +873,7 @@ where not exists (
       and coalesce(t.cabang, '') = coalesce(v.cabang, '')
 );
 
--- 5) Izinkan aplikasi membaca data (RLS + policy + grant).
+-- 5) Izinkan aplikasi membaca dan menambah toko (RLS + policy + grant).
 alter table public."TOKO" enable row level security;
 
 drop policy if exists "toko_baca_semua" on public."TOKO";
@@ -925,8 +882,24 @@ create policy "toko_baca_semua" on public."TOKO"
     for select to anon, authenticated
     using (true);
 
+drop policy if exists "toko_tambah_semua" on public."TOKO";
+create policy "toko_tambah_semua" on public."TOKO"
+    for insert to anon, authenticated
+    with check (true);
+
 grant usage on schema public to anon, authenticated;
-grant select on table public."TOKO" to anon, authenticated;
+grant select, insert on table public."TOKO" to anon, authenticated;
+
+-- Kalau tabel baru dibuat dengan kolom id bigserial, izinkan juga akses sequence-nya.
+do $$
+begin
+    if exists (
+        select 1 from pg_class
+        where relkind = 'S' and relname = 'TOKO_id_seq'
+    ) then
+        execute 'grant usage, select on sequence public."TOKO_id_seq" to anon, authenticated';
+    end if;
+end $$;
 
 commit;
 
@@ -1357,188 +1330,471 @@ notify pgrst, 'reload schema';
             muatDataToko(true);
         });
 
-        // ====== CSV DATA TOKO ======
-        $('fileTokoCsv').addEventListener('change', (ev) => {
-            const file = ev.target.files[0];
-            if (!file) return;
+        // ====== SIMPAN TOKO BARU ======
+        async function simpanTokoBaru() {
+            const inputNama = $('tokoBaruNama');
+            const inputCabangBaru = $('tokoBaruCabang');
+            const inputRegionalBaru = $('tokoBaruRegional');
+            const info = $('infoTokoBaru');
+            const btn = $('btnSimpanToko');
 
-            const info = $('infoTokoCsv');
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const teks = String(e.target.result || '');
-                    if (!pakaiCsvToko(teks, file.name)) {
-                        info.textContent = '⚠ CSV tidak berisi data toko. Format: nama toko,cabang';
-                        info.className = 'hint err';
-                        return;
-                    }
-                    info.textContent = '✔ ' + masterToko.length + ' toko dimuat dari ' +
-                        file.name + ' (tersimpan di browser).';
-                    info.className = 'hint ok';
-                    inputToko.focus();
-                } catch (err) {
-                    console.error('Gagal membaca CSV toko:', err);
-                    info.textContent = '⚠ Gagal membaca CSV: ' + (err.message || err);
-                    info.className = 'hint err';
-                }
+            const nama = clean(inputNama.value);
+            const cabang = clean(inputCabangBaru.value);
+            const regional = clean(inputRegionalBaru.value);
+
+            const tampilInfo = (teks, kelas) => {
+                info.textContent = teks;
+                info.className = 'hint' + (kelas ? ' ' + kelas : '');
             };
-            reader.readAsText(file, 'UTF-8');
+
+            if (!nama) {
+                tampilInfo('⚠ Nama toko wajib diisi.', 'err');
+                inputNama.focus();
+                return;
+            }
+            if (!cabang) {
+                tampilInfo('⚠ Cabang wajib diisi.', 'err');
+                inputCabangBaru.focus();
+                return;
+            }
+            if (masterToko.some(t =>
+                normalize(t.nama_toko) === normalize(nama) &&
+                normalize(t.cabang) === normalize(cabang))) {
+                tampilInfo('⚠ Toko "' + nama + '" (' + cabang + ') sudah ada di database.', 'err');
+                return;
+            }
+            if (!_supabase) {
+                tampilInfo('⚠ Tidak terhubung ke Supabase. Periksa internet lalu muat ulang.', 'err');
+                return;
+            }
+
+            const teksAsli = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Menyimpan...';
+
+            try {
+                const payload = {
+                    nama_toko: nama,
+                    cabang: cabang,
+                    regional: regional || null
+                };
+                const { error } = await _supabase.from(TABLE_TOKO).insert([payload]);
+                if (error) throw error;
+
+                masterToko.push({
+                    nama_toko: nama,
+                    cabang: cabang,
+                    regional: regional,
+                    raw: payload
+                });
+                masterToko = buangDuplikat(masterToko);
+
+                tampilInfo('✔ Toko "' + nama + '" (' + cabang + ') tersimpan. Total ' +
+                    masterToko.length + ' toko.', 'ok');
+                elBanner.hidden = true;
+                setStatus('✔ Terhubung — ' + masterToko.length + ' toko dimuat.', 'ok');
+
+                inputNama.value = '';
+                inputCabangBaru.value = '';
+                inputRegionalBaru.value = '';
+                inputNama.focus();
+            } catch (err) {
+                console.error('Gagal menyimpan toko:', err);
+                const pesan = String(err.message || err);
+                if ((err.code === '42501') || /row-level security|permission denied/i.test(pesan)) {
+                    tampilInfo('⚠ Database belum mengizinkan tambah toko. Jalankan SQL perbaikan (lihat kotak kuning di atas).', 'err');
+                    tampilkanBanner('izin');
+                } else {
+                    tampilInfo('⚠ Gagal menyimpan: ' + pesan, 'err');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = teksAsli;
+            }
+        }
+
+        $('btnSimpanToko').addEventListener('click', simpanTokoBaru);
+        ['tokoBaruNama', 'tokoBaruCabang', 'tokoBaruRegional'].forEach(id => {
+            $(id).addEventListener('keydown', (ev) => {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    simpanTokoBaru();
+                }
+            });
         });
 
-        // ====== TANGGAL & BULAN ======
+        // ====== TANGGAL, BULAN & TAHUN ======
         inputTanggal.value = hariIni();
 
-        function sinkronBulan() {
+        function sinkronPeriode() {
             if (!inputTanggal.value) return;
             const d = new Date(inputTanggal.value + 'T00:00:00');
             if (isNaN(d.getTime())) return;
-            selectBulan.value = String(d.getMonth());
+            inputTahun.value = String(d.getFullYear());
         }
-        inputTanggal.addEventListener('change', sinkronBulan);
-        sinkronBulan();
+        inputTanggal.addEventListener('change', sinkronPeriode);
+        sinkronPeriode();
 
-        // ====== TEMPLATE ======
-        $('fileTemplate').addEventListener('change', (ev) => {
-            const file = ev.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                templateBuffer = new Uint8Array(e.target.result);
-                $('infoTemplate').textContent = '✔ Template dimuat: ' + file.name;
-                $('infoTemplate').className = 'hint ok';
-            };
-            reader.readAsArrayBuffer(file);
+        inputTahun.addEventListener('change', () => {
+            const th = parseInt(inputTahun.value, 10);
+            if (!th || !inputTanggal.value) return;
+            inputTanggal.value = String(th) + inputTanggal.value.slice(4);
         });
 
         // ====== EXPORT EXCEL ======
-        $('btnExport').addEventListener('click', () => {
+        const NAMA_BULAN = [
+            'JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI',
+            'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'
+        ];
+
+        const FONT_EXCEL = 'Times New Roman';
+        // Sama seperti file asli: "Rp" di kiri sel, angka rata kanan.
+        const NUMFMT_RUPIAH = '_-"Rp"* #,##0_-;_-"Rp"* -#,##0_-;_-"Rp"* "-"_-;_-@_-';
+        const WARNA_EXCEL = {
+            judul: 'FFF2F2F2',
+            regional: 'FFF8CBAD',
+            toko: 'FFFFFFFF',
+            total: 'FFEDEDED',
+            garis: 'FF000000'
+        };
+
+        function jumlahHari(tahun, bulan) {
+            return new Date(tahun, bulan + 1, 0).getDate();
+        }
+
+        function labelRegional(t) {
+            const isi = clean(t.regional || t.cabang || 'LAINNYA').toUpperCase();
+            return isi.indexOf('REGIONAL ') === 0 ? isi : 'REGIONAL ' + isi;
+        }
+
+        function kunciToko(t) {
+            return normalize(t.nama_toko) + '|' + normalize(t.cabang);
+        }
+
+        // Kelompokkan toko per regional (kalau kolom regional kosong, pakai cabang).
+        function kelompokkanToko() {
+            const peta = new Map();
+            masterToko.forEach(t => {
+                const label = labelRegional(t);
+                if (!peta.has(label)) peta.set(label, []);
+                peta.get(label).push(t);
+            });
+
+            const hasil = [];
+            peta.forEach((toko, label) => {
+                toko.sort((a, b) => a.nama_toko.localeCompare(b.nama_toko, 'id', { sensitivity: 'base' }));
+                hasil.push({ label, toko });
+            });
+            hasil.sort((a, b) => a.label.localeCompare(b.label, 'id', { sensitivity: 'base' }));
+            return hasil;
+        }
+
+        // Data rekap per bulan -> regional -> toko -> tanggal -> nominal.
+        function indeksDataRekap() {
+            const idx = new Map();
+            listDataRekap.forEach(item => {
+                const bagian = String(item.tanggal || '').split('-').map(Number);
+                if (bagian.length !== 3 || bagian.some(isNaN)) return;
+                const th = bagian[0];
+                const bl = bagian[1];
+                const hr = bagian[2];
+                const keyBulan = th * 12 + (bl - 1);
+
+                if (!idx.has(keyBulan)) idx.set(keyBulan, new Map());
+                const perBulan = idx.get(keyBulan);
+
+                const label = labelRegional(item);
+                if (!perBulan.has(label)) perBulan.set(label, new Map());
+                const perToko = perBulan.get(label);
+
+                const key = kunciToko(item);
+                if (!perToko.has(key)) perToko.set(key, new Map());
+                const perHari = perToko.get(key);
+
+                perHari.set(hr, (perHari.get(hr) || 0) + Number(item.nominal || 0));
+            });
+            return idx;
+        }
+
+        function sisiGaris(style) {
+            return { style: style, color: { argb: WARNA_EXCEL.garis } };
+        }
+
+        function batasSel(atas, kiri, bawah, kanan) {
+            return {
+                top: sisiGaris(atas || 'thin'),
+                left: sisiGaris(kiri || 'thin'),
+                bottom: sisiGaris(bawah || 'thin'),
+                right: sisiGaris(kanan || 'thin')
+            };
+        }
+
+        function isiGaris(ws, r1, c1, r2, c2, tebalLuar) {
+            for (let r = r1; r <= r2; r++) {
+                for (let c = c1; c <= c2; c++) {
+                    const cell = ws.getRow(r).getCell(c);
+                    const atas = tebalLuar && r === r1 ? 'medium' : 'thin';
+                    const bawah = tebalLuar && r === r2 ? 'medium' : 'thin';
+                    const kiri = tebalLuar && c === c1 ? 'medium' : 'thin';
+                    const kanan = tebalLuar && c === c2 ? 'medium' : 'thin';
+                    cell.border = batasSel(atas, kiri, bawah, kanan);
+                }
+            }
+        }
+
+        function bangunSheetRekap(wb, bulanIndex, tahun, logoId, grup, dataBulan) {
+            const ws = wb.addWorksheet(NAMA_BULAN[bulanIndex], {
+                views: [{ state: 'frozen', xSplit: 2, ySplit: 0, zoomScale: 85 }],
+                properties: { defaultRowHeight: 15 }
+            });
+
+            const maxToko = Math.max(4, ...grup.map(g => g.toko.length));
+            const kolomTerakhir = 2 + maxToko;
+
+            ws.getColumn(1).width = 4.3;
+            ws.getColumn(2).width = 14.6;
+            for (let c = 3; c <= kolomTerakhir; c++) {
+                ws.getColumn(c).width = 20;
+            }
+
+            // Kop surat Villa Parfum (kiri atas)
+            ws.addImage(logoId, {
+                tl: { col: 1, row: 0.35 },
+                ext: { width: 280, height: 155 },
+                editAs: 'oneCell'
+            });
+
+            // Judul & nama bulan (lebar tetap E:H seperti file asli)
+            const kolomJudul = 5; // E
+            const akhirJudul = 8; // H
+
+            ws.mergeCells(1, kolomJudul, 2, akhirJudul);
+            const selJudul = ws.getRow(1).getCell(kolomJudul);
+            selJudul.value = 'REKAP PERMINTAAN BARANG TAHUN ' + tahun;
+            selJudul.font = { name: FONT_EXCEL, size: 16, bold: true, underline: 'singleAccounting' };
+            selJudul.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            for (let c = kolomJudul; c <= akhirJudul; c++) {
+                ws.getRow(1).getCell(c).fill =
+                    { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.judul } };
+            }
+
+            ws.mergeCells(3, kolomJudul, 4, akhirJudul);
+            const selBulan = ws.getRow(3).getCell(kolomJudul);
+            selBulan.value = NAMA_BULAN[bulanIndex];
+            selBulan.font = { name: FONT_EXCEL, size: 22, bold: true };
+            selBulan.alignment = { horizontal: 'center', vertical: 'middle' };
+
+            ws.getRow(1).height = 15;
+            ws.getRow(2).height = 15;
+            ws.getRow(3).height = 15;
+            ws.getRow(4).height = 15;
+
+            const hariDalamBulan = jumlahHari(tahun, bulanIndex);
+            let baris = 12;
+
+            grup.forEach(g => {
+                const jumlahToko = g.toko.length;
+                const cAwal = 3;
+                const cAkhir = 2 + jumlahToko;
+                const hdr = baris;
+
+                // Header "TGL" (dua baris)
+                ws.mergeCells(hdr, 2, hdr + 1, 2);
+                const selTgl = ws.getRow(hdr).getCell(2);
+                selTgl.value = 'TGL';
+                selTgl.font = { name: FONT_EXCEL, size: 11, bold: true };
+                selTgl.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                // Header regional (merge di atas kolom toko)
+                if (jumlahToko > 1) {
+                    ws.mergeCells(hdr, cAwal, hdr, cAkhir);
+                }
+                const selRegional = ws.getRow(hdr).getCell(cAwal);
+                selRegional.value = g.label;
+                selRegional.font = { name: FONT_EXCEL, size: 11, bold: true };
+                selRegional.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                for (let c = cAwal; c <= cAkhir; c++) {
+                    ws.getRow(hdr).getCell(c).fill =
+                        { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.regional } };
+                }
+
+                // Nama-nama toko
+                const dataLabel = dataBulan.get(g.label) || new Map();
+                g.toko.forEach((t, i) => {
+                    const cell = ws.getRow(hdr + 1).getCell(cAwal + i);
+                    cell.value = String(t.nama_toko || '').toUpperCase();
+                    cell.font = { name: FONT_EXCEL, size: 11, bold: true };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.toko } };
+                });
+
+                ws.getRow(hdr).height = 20;
+                ws.getRow(hdr + 1).height = 28;
+
+                // Baris tanggal + nominal
+                const rAwal = hdr + 3;
+                const rAkhir = rAwal + hariDalamBulan - 1;
+
+                for (let hari = 1; hari <= hariDalamBulan; hari++) {
+                    const r = rAwal + hari - 1;
+                    ws.getRow(r).height = 16;
+
+                    const selTanggal = ws.getRow(r).getCell(2);
+                    selTanggal.value = new Date(Date.UTC(tahun, bulanIndex, hari));
+                    selTanggal.numFmt = 'dd-mmm-yy';
+                    selTanggal.font = { name: FONT_EXCEL, size: 11 };
+                    selTanggal.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                    for (let c = cAwal; c <= cAkhir; c++) {
+                        const cell = ws.getRow(r).getCell(c);
+                        cell.font = { name: FONT_EXCEL, size: 11 };
+                        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+                    }
+                }
+
+                // Nominal
+                g.toko.forEach((t, i) => {
+                    const perHari = dataLabel.get(kunciToko(t));
+                    if (!perHari) return;
+                    const c = cAwal + i;
+                    perHari.forEach((nominal, hari) => {
+                        if (hari < 1 || hari > hariDalamBulan) return;
+                        const cell = ws.getRow(rAwal + hari - 1).getCell(c);
+                        cell.value = Number(nominal) || 0;
+                        cell.numFmt = NUMFMT_RUPIAH;
+                    });
+                });
+
+                // Tabel header (TGL + regional + nama toko)
+                isiGaris(ws, hdr, 2, hdr + 1, cAkhir, true);
+
+                // Tabel tanggal (baris 14 dikosongkan, seperti file asli)
+                isiGaris(ws, rAwal, 2, rAkhir, cAkhir, true);
+
+                // Baris TOTAL (dipisah satu baris kosong)
+                const rTotal = rAkhir + 2;
+                ws.getRow(rTotal).height = 18;
+
+                const selTotal = ws.getRow(rTotal).getCell(2);
+                selTotal.value = 'TOTAL';
+                selTotal.font = { name: FONT_EXCEL, size: 11, bold: true };
+                selTotal.alignment = { horizontal: 'center', vertical: 'middle' };
+
+                for (let i = 0; i < jumlahToko; i++) {
+                    const c = cAwal + i;
+                    const huruf = ws.getColumn(c).letter;
+                    const cell = ws.getRow(rTotal).getCell(c);
+                    cell.value = { formula: 'SUM(' + huruf + rAwal + ':' + huruf + rAkhir + ')' };
+                    cell.numFmt = NUMFMT_RUPIAH;
+                    cell.font = { name: FONT_EXCEL, size: 11, bold: true };
+                    cell.alignment = { horizontal: 'right', vertical: 'middle' };
+                }
+
+                isiGaris(ws, rTotal, 2, rTotal, cAkhir, true);
+
+                // Jarak antar blok regional
+                baris = rTotal + 3;
+            });
+
+            return ws;
+        }
+
+        function buatWorkbookRekap(tahun) {
+            if (!masterToko.length) throw new Error('Data toko belum dimuat.');
+            if (!listDataRekap.length) throw new Error('Belum ada data rekap yang dimasukkan.');
+
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'Villa Parfum';
+            wb.created = new Date();
+            wb.calcProperties.fullCalcOnLoad = true;
+
+            const logoId = wb.addImage({ base64: LOGO_B64, extension: 'png' });
+            const grup = kelompokkanToko();
+            const idx = indeksDataRekap();
+
+            const labelTersedia = new Map();
+            grup.forEach(g => {
+                labelTersedia.set(g.label, new Set(g.toko.map(kunciToko)));
+            });
+
+            let berhasil = 0;
+            const dilewati = [];
+            listDataRekap.forEach(item => {
+                const bagian = String(item.tanggal || '').split('-').map(Number);
+                if (bagian.length !== 3 || bagian.some(isNaN)) {
+                    dilewati.push(item.nama_toko + ': tanggal tidak valid');
+                    return;
+                }
+                if (bagian[0] !== tahun) {
+                    dilewati.push(item.nama_toko + ' (' + item.tanggal + '): beda tahun');
+                    return;
+                }
+                const label = labelRegional(item);
+                const set = labelTersedia.get(label);
+                if (!set || !set.has(kunciToko(item))) {
+                    dilewati.push(item.nama_toko + ' (' + item.cabang + '): tidak ada di daftar toko');
+                    return;
+                }
+                berhasil++;
+            });
+
+            for (let m = 0; m < 12; m++) {
+                const dataBulan = idx.get(tahun * 12 + m) || new Map();
+                bangunSheetRekap(wb, m, tahun, logoId, grup, dataBulan);
+            }
+
+            return { wb, berhasil, dilewati, grup };
+        }
+
+        $('btnExport').addEventListener('click', async () => {
+            const btn = $('btnExport');
+            const teksAsli = btn.textContent;
+
             if (!listDataRekap.length) {
                 alert('Belum ada data rekap yang dimasukkan!');
                 return;
             }
-            if (!templateBuffer) {
-                alert('Silakan upload file template Excel master terlebih dahulu!');
+            if (!masterToko.length) {
+                alert('Data toko belum dimuat. Klik "Muat ulang data toko dari Supabase" dulu.');
+                return;
+            }
+            if (typeof ExcelJS === 'undefined') {
+                alert('Library Excel belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
                 return;
             }
 
-            const namaBulan = selectBulan.options[selectBulan.selectedIndex].text.toUpperCase();
-            const bulanIndex = parseInt(selectBulan.value, 10);
-            const tahunAktif = inputTanggal.value
-                ? new Date(inputTanggal.value + 'T00:00:00').getFullYear()
-                : new Date().getFullYear();
+            const tahun = parseInt(inputTahun.value, 10) || new Date().getFullYear();
+
+            btn.disabled = true;
+            btn.textContent = 'Menyiapkan 12 sheet...';
 
             try {
-                const workbook = XLSX.read(templateBuffer, { type: 'array' });
-                const sheetName = workbook.SheetNames[bulanIndex] || workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                if (!worksheet) throw new Error('Sheet untuk bulan itu tidak ditemukan di template.');
-
-                let berhasil = 0;
-                const dilewati = [];
-
-                function normalHeader(v) {
-                    return normalize(v);
-                }
-
-                // Cari kolom di baris header (baris 4 Excel / index 3),
-                // cocokkan dengan cabang dulu, lalu nama toko.
-                function cariKolom(item) {
-                    const kandidat = [];
-                    if (item.cabang) kandidat.push(normalHeader(item.cabang));
-                    if (item.nama_toko) kandidat.push(normalHeader(item.nama_toko));
-                    if (item.nama_toko || item.cabang) {
-                        kandidat.push(normalHeader([item.nama_toko, item.cabang].filter(Boolean).join(' ')));
-                    }
-
-                    let terbaik = -1;
-                    let skorTerbaik = 0;
-
-                    for (let c = 1; c < 500; c++) {
-                        const cell = worksheet[XLSX.utils.encode_cell({ r: 3, c: c })];
-                        if (!cell || cell.v === undefined || cell.v === null) {
-                            // Toleransi satu sel kosong; berhenti jika 2 kosong berturut-turut.
-                            const n1 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 1 })];
-                            const n2 = worksheet[XLSX.utils.encode_cell({ r: 3, c: c + 2 })];
-                            if ((!n1 || n1.v === undefined) && (!n2 || n2.v === undefined)) break;
-                            continue;
-                        }
-
-                        const header = normalHeader(cell.v);
-                        if (!header) continue;
-
-                        for (const cand of kandidat) {
-                            if (!cand) continue;
-                            let skor = 0;
-                            if (header === cand) skor = 100;
-                            else if (header.includes(cand) || cand.includes(header)) skor = 60;
-                            if (skor > skorTerbaik) {
-                                skorTerbaik = skor;
-                                terbaik = c;
-                                if (skor === 100) break;
-                            }
-                        }
-                        if (skorTerbaik === 100) break;
-                    }
-                    return terbaik;
-                }
-
-                listDataRekap.forEach(item => {
-                    const bagian = item.tanggal.split('-').map(Number);
-                    const tahun = bagian[0];
-                    const bln = bagian[1];
-                    const hari = bagian[2];
-
-                    if (bln - 1 !== bulanIndex) {
-                        dilewati.push(`${item.nama_toko} (${item.tanggal}): beda bulan`);
-                        return;
-                    }
-                    if (tahun !== tahunAktif) {
-                        // Tetap proses, tapi beri info tahun di nama file.
-                    }
-
-                    // Baris Excel 5 untuk tanggal 1 (index 0-based: 3 + hari)
-                    const rowIdx = 3 + hari;
-                    if (rowIdx < 4) {
-                        dilewati.push(`${item.nama_toko}: tanggal tidak valid`);
-                        return;
-                    }
-
-                    const colIndex = cariKolom(item);
-                    if (colIndex === -1) {
-                        dilewati.push(`${item.nama_toko}${item.cabang ? ' / ' + item.cabang : ''}: kolom tidak ada di template`);
-                        return;
-                    }
-
-                    const addr = XLSX.utils.encode_cell({ r: rowIdx, c: colIndex });
-                    const sel = worksheet[addr];
-                    const nilaiSebelumnya = sel ? (Number(sel.v) || 0) : 0;
-
-                    // Ubah nilai tanpa menghapus format sel template.
-                    const barisBaru = sel || {};
-                    barisBaru.t = 'n';
-                    barisBaru.v = nilaiSebelumnya + Number(item.nominal);
-                    delete barisBaru.f;
-                    delete barisBaru.w;
-                    worksheet[addr] = barisBaru;
-
-                    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-                    if (rowIdx > range.e.r) range.e.r = rowIdx;
-                    if (colIndex > range.e.c) range.e.c = colIndex;
-                    worksheet['!ref'] = XLSX.utils.encode_range(range);
-
-                    berhasil++;
+                const { wb, berhasil, dilewati } = buatWorkbookRekap(tahun);
+                const buffer = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Rekap_Order_' + tahun + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
 
-                XLSX.writeFile(workbook, `Rekap_Order_${namaBulan}_${tahunAktif}.xlsx`);
-
-                let pesan = `${berhasil} data berhasil dimasukkan ke Excel.`;
+                let pesan = 'File Excel berisi 12 sheet (JANUARI - DESEMBER ' + tahun + ').\n\n' +
+                    berhasil + ' data rekap berhasil dimasukkan.';
                 if (dilewati.length) {
-                    pesan += `\n\nDilewati (${dilewati.length}):\n- ` + dilewati.join('\n- ');
+                    pesan += '\n\nDilewati (' + dilewati.length + '):\n- ' + dilewati.join('\n- ');
                 }
                 alert(pesan);
             } catch (err) {
                 console.error(err);
-                alert('Terjadi kesalahan saat memproses file Excel: ' + (err.message || err));
+                alert('Terjadi kesalahan saat membuat file Excel: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = teksAsli;
             }
         });
 
@@ -1549,6 +1805,7 @@ notify pgrst, 'reload schema';
         // Debug/uji dari console browser (tidak dipakai aplikasi sehari-hari).
         window.rekaporder = {
             get masterToko() { return masterToko; },
+            get listDataRekap() { return listDataRekap; },
             setMasterToko(list) {
                 masterToko = buangDuplikat(list.map(t => ({
                     nama_toko: t.nama_toko || t.nama || '',
@@ -1558,11 +1815,23 @@ notify pgrst, 'reload schema';
                 })).filter(t => t.nama_toko));
                 setStatus('✔ Mode uji — ' + masterToko.length + ' toko dimuat.', 'ok');
             },
+            setDataRekap(list) {
+                listDataRekap = list.map(t => ({
+                    tanggal: t.tanggal,
+                    nama_toko: t.nama_toko,
+                    cabang: t.cabang || '',
+                    regional: t.regional || '',
+                    nominal: Number(t.nominal) || 0
+                }));
+                renderPreview();
+            },
+            buatWorkbookRekap,
+            simpanTokoBaru,
+            kelompokkanToko,
             resolveToko,
             cariKandidat,
             normalize,
-            bacaCsvToko,
-            pakaiCsvToko
+            bacaCsvToko
         };
     </script>
 </body>
