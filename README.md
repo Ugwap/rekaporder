@@ -18,7 +18,29 @@ ke file Excel 12 bulan (satu sheet per bulan). Semua kode aplikasi ada di dalam
 3. **Cabang terisi otomatis** dari data toko (read-only).
 4. **Isi nominal** lalu klik **+ Tambah ke Daftar**.
 5. Ulangi untuk toko/tanggal berikutnya.
-6. Pilih **Tahun Rekap**, lalu klik **Download Rekap Excel 12 Bulan**.
+6. Pilih **Tahun Rekap**, lalu klik **Download Rekap Order (Excel 12 Bulan)**.
+
+### Revisi data
+
+Kalau **tanggal dan nama toko** yang sama sudah ada di daftar, input baru
+**tidak langsung masuk**. Aplikasi menandai kolom **Keterangan Revisi** sebagai
+wajib dan menampilkan peringatan:
+
+> ⚠ Toko ini sudah diinput pada 07 Nov 2026. Isi keterangan revisi — data lama
+> akan ditimpa.
+
+Alurnya:
+
+1. Isi **Keterangan Revisi** (mis. *“Salah input nominal, dikoreksi dari 100rb
+   ke 150rb”*).
+2. Klik **+ Tambah ke Daftar** lagi.
+3. Nominal lama **ditimpa** dengan nominal baru, dan revisi tercatat di
+   **5. Daftar Revisi**.
+
+Pengecekan hanya berlaku untuk kombinasi **tanggal + nama toko** yang persis
+sama. Tanggal beda atau toko beda tetap masuk sebagai data baru. Kalau satu
+baris dihapus dari preview, revisi milik baris itu ikut terhapus supaya isi
+export tetap sinkron.
 
 ### Input Toko Baru
 
@@ -39,6 +61,15 @@ Kalau database menolak (pesan *row-level security*), jalankan
 
 ### Export Excel
 
+Ada **dua** file export:
+
+| Tombol | File | Isi |
+|---|---|---|
+| **Download Rekap Order (Excel 12 Bulan)** | `Rekap_Order_<TAHUN>.xlsx` | 12 sheet rekap |
+| **Download Rekap Revisi** | `Rekap_Revisi_<TAHUN>.xlsx` | 1 sheet `REKAP REVISI` |
+
+**Rekap Order**
+
 - Hasil export selalu berisi **12 sheet**: `JANUARI` sampai `DESEMBER` untuk
   tahun yang dipilih.
 - Setiap sheet memakai format rekap Villa Parfum:
@@ -49,11 +80,21 @@ Kalau database menolak (pesan *row-level security*), jalankan
   - baris tanggal 1 sampai akhir bulan (format `dd-mmm-yy`),
   - nominal rupiah (`Rp`) rata kanan,
   - baris **TOTAL** berisi formula `SUM` per toko.
-- Data dikelompokkan per bulan → regional → toko → tanggal. Kalau ada beberapa
-  transaksi untuk toko dan tanggal yang sama, nominalnya dijumlahkan.
+- Data dikelompokkan per bulan → regional → toko → tanggal.
+- Kalau tanggal + toko yang sama diinput ulang, nilainya **ditimpa** (bukan
+  dijumlahkan) dan wajib disertai keterangan revisi.
 - Hanya data dengan tahun yang dipilih dan toko yang terdaftar di database
   yang dimasukkan. Data lain dilaporkan sebagai "dilewati" setelah export.
-- Nama file: `Rekap_Order_<TAHUN>.xlsx`.
+
+**Rekap Revisi**
+
+- Satu sheet `REKAP REVISI` berisi log perubahan tahun terpilih.
+- Kolom: **NO**, **NAMA TOKO**, **TANGGAL**, **REVISI** (keterangan yang diisi
+  saat menimpa data).
+- Tanggal memakai format `dd-mmm-yy`, header dibekukan (freeze pane), dan siap
+  dicetak (fit to width).
+- Kalau belum ada revisi, tombol ini memberi pesan dan tidak membuat file.
+
 
 ---
 

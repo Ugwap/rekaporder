@@ -183,6 +183,10 @@
             color: #334155;
         }
         .badge-green { background: #d1fae5; color: #065f46; }
+        .badge-amber { background: #fef3c7; color: #92400e; }
+        .btn-amber { background-color: #f59e0b; color: #fff; }
+        .btn-amber:hover { background-color: #d97706; }
+        .cell-revisi { font-size: 0.78rem; color: #92400e; }
         .empty-row td { text-align: center; color: var(--abu); padding: 22px 8px; }
         .banner {
             background: #fffbeb;
@@ -290,6 +294,15 @@
                 <input type="number" id="inputNominal" inputmode="numeric" min="1" step="any" placeholder="0">
             </div>
 
+            <div class="form-group">
+                <label for="inputKeterangan">Keterangan Revisi <span id="reqKeterangan" class="req" hidden>*</span></label>
+                <input type="text" id="inputKeterangan" autocomplete="off" spellcheck="false" maxlength="200"
+                       placeholder="Wajib diisi kalau tanggal & toko ini sudah pernah diinput">
+                <small id="infoKeterangan" class="hint">
+                    Hanya perlu diisi kalau tanggal &amp; nama toko yang sama sudah ada di daftar.
+                </small>
+            </div>
+
             <button type="button" id="btnTambah" class="btn btn-success">+ Tambah ke Daftar</button>
         </div>
 
@@ -346,11 +359,12 @@
                             <th>Nama Toko</th>
                             <th>Cabang</th>
                             <th>Nominal</th>
+                            <th>Revisi</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr class="empty-row"><td colspan="5">Belum ada data ditambahkan.</td></tr>
+                        <tr class="empty-row"><td colspan="6">Belum ada data ditambahkan.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -358,8 +372,31 @@
                 <span>Total data</span>
                 <span id="infoTotal">0 data • Rp 0</span>
             </div>
-            <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Excel 12 Bulan</button>
+            <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Order (Excel 12 Bulan)</button>
+            <button type="button" id="btnExportRevisi" class="btn btn-amber">Download Rekap Revisi</button>
             <button type="button" id="btnReset" class="btn btn-ghost">Kosongkan Daftar</button>
+        </div>
+
+        <!-- 5. Daftar revisi -->
+        <div class="card">
+            <h3>5. Daftar Revisi</h3>
+            <div class="table-responsive">
+                <table id="tabelRevisi">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Nama Toko</th>
+                            <th>Revisi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="empty-row"><td colspan="3">Belum ada revisi.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <small class="hint">
+                Isinya otomatis sama dengan sheet <b>REKAP REVISI</b> di file export.
+            </small>
         </div>
     </div>
 
@@ -387,7 +424,8 @@
 
         // ====== STATE ======
         let masterToko = [];       // [{ nama_toko, cabang, regional, raw }]
-        let listDataRekap = [];    // [{ tanggal, nama_toko, cabang, regional, nominal }]
+        let listDataRekap = [];    // [{ tanggal, nama_toko, cabang, regional, nominal, revisi, jumlah_revisi }]
+        let listRevisi = [];       // [{ tanggal, nama_toko, cabang, regional, nominal_lama, nominal_baru, keterangan, waktu }]
         let selectedToko = null;
         let suggestionItems = [];
         let activeSuggestion = -1;
@@ -400,6 +438,9 @@
         const inputToko = $('inputToko');
         const inputCabang = $('inputCabang');
         const inputNominal = $('inputNominal');
+        const inputKeterangan = $('inputKeterangan');
+        const infoKeterangan = $('infoKeterangan');
+        const reqKeterangan = $('reqKeterangan');
         const suggestBox = $('suggestBox');
         const infoToko = $('infoToko');
         const groupRegional = $('groupRegional');
@@ -448,6 +489,44 @@
 
         function rupiah(n) {
             return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+        }
+
+        // Tanggal ISO (YYYY-MM-DD) -> "07 Nov 2026" untuk pesan di layar.
+        function tanggalTampil(iso) {
+            const bagian = String(iso || '').split('-').map(Number);
+            if (bagian.length !== 3 || bagian.some(isNaN)) return String(iso || '');
+            return new Date(bagian[0], bagian[1] - 1, bagian[2])
+                .toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        // Baris dengan tanggal & nama toko yang sama. Input baru akan menimpa baris ini.
+        function cariDuplikatTanggal(namaToko, tanggal) {
+            const kunciNama = normalize(namaToko);
+            return listDataRekap.findIndex(it =>
+                it.tanggal === tanggal && normalize(it.nama_toko) === kunciNama);
+        }
+
+        // Tandai field keterangan jadi wajib kalau tanggal & toko sudah pernah diinput.
+        function periksaRevisi() {
+            const tanggal = inputTanggal.value;
+            const nama = selectedToko ? selectedToko.nama_toko : inputToko.value.trim();
+            const adaDuplikat = !!(tanggal && nama) && cariDuplikatTanggal(nama, tanggal) >= 0;
+
+            reqKeterangan.hidden = !adaDuplikat;
+
+            if (adaDuplikat) {
+                inputKeterangan.placeholder = 'Wajib: alasan data tanggal ini diganti';
+                infoKeterangan.textContent = '⚠ Toko ini sudah diinput pada ' + tanggalTampil(tanggal) +
+                    '. Isi keterangan revisi — data lama akan ditimpa.';
+                infoKeterangan.className = 'hint err';
+            } else {
+                inputKeterangan.placeholder = 'Wajib diisi kalau tanggal & toko ini sudah pernah diinput';
+                inputKeterangan.classList.remove('invalid');
+                infoKeterangan.textContent =
+                    'Hanya perlu diisi kalau tanggal & nama toko yang sama sudah ada di daftar.';
+                infoKeterangan.className = 'hint';
+            }
+            return adaDuplikat;
         }
 
         // ====== BACA DATA TOKO ======
@@ -1104,6 +1183,7 @@ notify pgrst, 'reload schema';
                     ? '⚠ Toko tidak ditemukan di database. Pilih dari daftar yang muncul.'
                     : 'Data toko belum dimuat dari Supabase.';
                 infoToko.className = 'hint err';
+                periksaRevisi();
                 return;
             }
 
@@ -1120,6 +1200,7 @@ notify pgrst, 'reload schema';
             const sub = subLabel(t);
             infoToko.textContent = '✔ Cocok dengan database' + (sub ? ' — ' + sub : '');
             infoToko.className = 'hint ok';
+            periksaRevisi();
         }
 
         function pilihToko(t) {
@@ -1153,6 +1234,7 @@ notify pgrst, 'reload schema';
                 infoToko.className = 'hint';
             }
             tampilkanSaran(val);
+            periksaRevisi();
         });
 
         inputToko.addEventListener('focus', () => {
@@ -1214,6 +1296,24 @@ notify pgrst, 'reload schema';
         });
 
         // ====== TAMBAH DATA ======
+        // Reset form setelah data masuk (tanggal tetap, supaya input berikutnya cepat).
+        function resetFormInput() {
+            inputToko.value = '';
+            inputCabang.value = '';
+            inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
+            inputRegional.textContent = '—';
+            groupRegional.hidden = true;
+            inputNominal.value = '';
+            inputKeterangan.value = '';
+            inputKeterangan.classList.remove('invalid');
+            selectedToko = null;
+            inputToko.classList.remove('invalid');
+            infoToko.textContent = 'Mulai ketik nama toko.';
+            infoToko.className = 'hint';
+            periksaRevisi();
+            inputToko.focus();
+        }
+
         $('btnTambah').addEventListener('click', () => {
             const tanggal = inputTanggal.value;
             const namaInput = inputToko.value.trim();
@@ -1252,31 +1352,81 @@ notify pgrst, 'reload schema';
                 return;
             }
 
+            const keterangan = clean(inputKeterangan.value);
+            const idxLama = cariDuplikatTanggal(t.nama_toko, tanggal);
+
+            // Tanggal & nama toko sama -> wajib keterangan, lalu data lama ditimpa.
+            if (idxLama >= 0) {
+                if (!keterangan) {
+                    reqKeterangan.hidden = false;
+                    inputKeterangan.classList.add('invalid');
+                    infoKeterangan.textContent = '⚠ Wajib diisi. Toko "' + t.nama_toko +
+                        '" sudah diinput pada ' + tanggalTampil(tanggal) + '.';
+                    infoKeterangan.className = 'hint err';
+                    inputKeterangan.focus();
+                    alert('Toko "' + t.nama_toko + '" sudah diinput pada ' + tanggalTampil(tanggal) + '.\n\n' +
+                          'Isi "Keterangan Revisi" dulu, lalu klik Tambah lagi.\n' +
+                          'Data lama akan ditimpa dengan nominal yang baru.');
+                    return;
+                }
+
+                const lama = listDataRekap[idxLama];
+                const nominalLama = Number(lama.nominal || 0);
+
+                lama.cabang = t.cabang || '';
+                lama.regional = t.regional || '';
+                lama.nominal = nominal;
+                lama.revisi = keterangan;
+                lama.jumlah_revisi = (lama.jumlah_revisi || 0) + 1;
+
+                listRevisi.push({
+                    tanggal: tanggal,
+                    nama_toko: t.nama_toko,
+                    cabang: t.cabang || '',
+                    regional: t.regional || '',
+                    nominal_lama: nominalLama,
+                    nominal_baru: nominal,
+                    keterangan: keterangan,
+                    waktu: new Date().toISOString()
+                });
+
+                renderPreview();
+                renderRevisi();
+                resetFormInput();
+
+                infoToko.textContent = '✔ Revisi tersimpan — ' + t.nama_toko + ', ' + tanggalTampil(tanggal) +
+                    ' (Rp ' + nominalLama.toLocaleString('id-ID') + ' → Rp ' +
+                    nominal.toLocaleString('id-ID') + ').';
+                infoToko.className = 'hint ok';
+                return;
+            }
+
             listDataRekap.push({
                 tanggal: tanggal,
                 nama_toko: t.nama_toko,
                 cabang: t.cabang || '',
                 regional: t.regional || '',
-                nominal: nominal
+                nominal: nominal,
+                revisi: '',
+                jumlah_revisi: 0
             });
 
             renderPreview();
-
-            // Reset supaya input berikutnya cepat: tanggal tetap.
-            inputToko.value = '';
-            inputCabang.value = '';
-            inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
-            inputRegional.textContent = '—';
-            groupRegional.hidden = true;
-            inputNominal.value = '';
-            selectedToko = null;
-            inputToko.classList.remove('invalid');
-            infoToko.textContent = 'Mulai ketik nama toko.';
-            infoToko.className = 'hint';
-            inputToko.focus();
+            resetFormInput();
         });
 
         inputNominal.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                $('btnTambah').click();
+            }
+        });
+
+        inputKeterangan.addEventListener('input', () => {
+            if (inputKeterangan.value.trim()) inputKeterangan.classList.remove('invalid');
+        });
+
+        inputKeterangan.addEventListener('keydown', (ev) => {
             if (ev.key === 'Enter') {
                 ev.preventDefault();
                 $('btnTambah').click();
@@ -1289,7 +1439,7 @@ notify pgrst, 'reload schema';
             tbody.innerHTML = '';
 
             if (!listDataRekap.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Belum ada data ditambahkan.</td></tr>';
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Belum ada data ditambahkan.</td></tr>';
                 $('infoTotal').textContent = '0 data • Rp 0';
                 return;
             }
@@ -1299,30 +1449,75 @@ notify pgrst, 'reload schema';
                 const cabangTampil = item.cabang || item.nama_toko;
                 const regional = item.regional
                     ? '<span class="badge">' + esc(item.regional) + '</span>' : '';
+                const selRevisi = item.revisi
+                    ? '<span class="badge badge-amber">Revisi' +
+                      (item.jumlah_revisi > 1 ? ' ×' + item.jumlah_revisi : '') + '</span><br>' +
+                      '<span class="cell-revisi">' + esc(item.revisi) + '</span>'
+                    : '—';
                 tr.innerHTML = `
                     <td>${esc(item.tanggal)}</td>
                     <td><strong>${esc(item.nama_toko)}</strong>${regional ? '<br>' + regional : ''}</td>
                     <td>${esc(cabangTampil)}</td>
                     <td>${rupiah(item.nominal)}</td>
+                    <td>${selRevisi}</td>
                     <td class="row-actions"><button type="button" onclick="hapusPreview(${index})">Hapus</button></td>
                 `;
                 tbody.appendChild(tr);
             });
 
             const total = listDataRekap.reduce((s, it) => s + Number(it.nominal || 0), 0);
-            $('infoTotal').textContent = listDataRekap.length + ' data • ' + rupiah(total);
+            $('infoTotal').textContent = listDataRekap.length + ' data • ' + rupiah(total) +
+                (listRevisi.length ? ' • ' + listRevisi.length + ' revisi' : '');
+        }
+
+        // ====== DAFTAR REVISI ======
+        function renderRevisi() {
+            const tbody = document.querySelector('#tabelRevisi tbody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (!listRevisi.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Belum ada revisi.</td></tr>';
+                return;
+            }
+
+            // Terbaru di atas.
+            const urut = listRevisi
+                .map((item, i) => ({ item, i }))
+                .sort((a, b) => (a.item.tanggal === b.item.tanggal
+                    ? b.i - a.i
+                    : String(b.item.tanggal).localeCompare(String(a.item.tanggal))));
+
+            urut.forEach(({ item }) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${esc(tanggalTampil(item.tanggal))}</td>
+                    <td><strong>${esc(item.nama_toko)}</strong></td>
+                    <td>${esc(item.keterangan)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
         }
 
         function hapusPreview(index) {
+            const item = listDataRekap[index];
+            if (!item) return;
+            const kunciNama = normalize(item.nama_toko);
             listDataRekap.splice(index, 1);
+            // Revisi milik baris yang dihapus ikut dibuang supaya export tetap sinkron.
+            listRevisi = listRevisi.filter(r =>
+                !(r.tanggal === item.tanggal && normalize(r.nama_toko) === kunciNama));
             renderPreview();
+            renderRevisi();
         }
 
         $('btnReset').addEventListener('click', () => {
-            if (!listDataRekap.length) return;
-            if (!confirm('Kosongkan semua data di daftar preview?')) return;
+            if (!listDataRekap.length && !listRevisi.length) return;
+            if (!confirm('Kosongkan semua data di daftar preview beserta daftar revisi?')) return;
             listDataRekap = [];
+            listRevisi = [];
             renderPreview();
+            renderRevisi();
         });
 
         // Muat ulang data toko secara manual (dipakai setelah SQL perbaikan dijalankan).
@@ -1433,6 +1628,7 @@ notify pgrst, 'reload schema';
             inputTahun.value = String(d.getFullYear());
         }
         inputTanggal.addEventListener('change', sinkronPeriode);
+        inputTanggal.addEventListener('change', periksaRevisi);
         sinkronPeriode();
 
         inputTahun.addEventListener('change', () => {
@@ -1798,14 +1994,161 @@ notify pgrst, 'reload schema';
             }
         });
 
+        // ====== EXPORT REKAP REVISI ======
+        // Sheet berisi log revisi: NAMA TOKO | TANGGAL | REVISI (keterangan).
+        function buatWorkbookRevisi(tahun) {
+            const baris = listRevisi
+                .filter(r => String(r.tanggal || '').slice(0, 4) === String(tahun))
+                .sort((a, b) =>
+                    String(a.tanggal).localeCompare(String(b.tanggal)) ||
+                    String(a.nama_toko).localeCompare(String(b.nama_toko), 'id', { sensitivity: 'base' }));
+
+            if (!baris.length) {
+                throw new Error('Belum ada data revisi untuk tahun ' + tahun + '.');
+            }
+
+            const wb = new ExcelJS.Workbook();
+            wb.creator = 'Villa Parfum';
+            wb.created = new Date();
+
+            const ws = wb.addWorksheet('REKAP REVISI');
+            ws.columns = [
+                { width: 6 },   // NO
+                { width: 30 },  // NAMA TOKO
+                { width: 14 },  // TANGGAL
+                { width: 60 }   // REVISI
+            ];
+
+            ws.mergeCells('A1:D1');
+            const selJudul = ws.getCell('A1');
+            selJudul.value = 'REKAP REVISI TAHUN ' + tahun;
+            selJudul.font = { name: FONT_EXCEL, size: 14, bold: true };
+            selJudul.alignment = { horizontal: 'center', vertical: 'middle' };
+            selJudul.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.judul } };
+            ws.getRow(1).height = 24;
+
+            ws.mergeCells('A2:D2');
+            const selSub = ws.getCell('A2');
+            selSub.value = 'Villa Parfum';
+            selSub.font = { name: FONT_EXCEL, size: 11, italic: true };
+            selSub.alignment = { horizontal: 'center', vertical: 'middle' };
+            ws.getRow(2).height = 16;
+
+            const rHdr = 3;
+            ['NO', 'NAMA TOKO', 'TANGGAL', 'REVISI'].forEach((teks, i) => {
+                const cell = ws.getRow(rHdr).getCell(i + 1);
+                cell.value = teks;
+                cell.font = { name: FONT_EXCEL, size: 11, bold: true };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: WARNA_EXCEL.regional } };
+            });
+            ws.getRow(rHdr).height = 22;
+
+            baris.forEach((r, i) => {
+                const row = rHdr + 1 + i;
+
+                const nomor = ws.getRow(row).getCell(1);
+                nomor.value = i + 1;
+                nomor.font = { name: FONT_EXCEL, size: 11 };
+                nomor.alignment = { horizontal: 'center', vertical: 'top' };
+
+                const nama = ws.getRow(row).getCell(2);
+                nama.value = String(r.nama_toko || '').toUpperCase();
+                nama.font = { name: FONT_EXCEL, size: 11 };
+                nama.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+
+                const bagian = String(r.tanggal || '').split('-').map(Number);
+                const tgl = ws.getRow(row).getCell(3);
+                if (bagian.length === 3 && !bagian.some(isNaN)) {
+                    tgl.value = new Date(Date.UTC(bagian[0], bagian[1] - 1, bagian[2]));
+                    tgl.numFmt = 'dd-mmm-yy';
+                } else {
+                    tgl.value = r.tanggal || '';
+                }
+                tgl.font = { name: FONT_EXCEL, size: 11 };
+                tgl.alignment = { horizontal: 'center', vertical: 'top' };
+
+                const rev = ws.getRow(row).getCell(4);
+                rev.value = r.keterangan || '';
+                rev.font = { name: FONT_EXCEL, size: 11 };
+                rev.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+
+                ws.getRow(row).height = 20;
+            });
+
+            const rAkhir = rHdr + baris.length;
+            isiGaris(ws, rHdr, 1, rAkhir, 4, true);
+
+            ws.views = [{ state: 'frozen', ySplit: rHdr }];
+            ws.pageSetup = {
+                orientation: 'portrait',
+                fitToPage: true,
+                fitToWidth: 1,
+                fitToHeight: 0,
+                paperSize: 9,
+                margins: {
+                    left: 0.5, right: 0.5, top: 0.6, bottom: 0.6,
+                    header: 0.3, footer: 0.3
+                }
+            };
+
+            return { wb, jumlah: baris.length };
+        }
+
+        $('btnExportRevisi').addEventListener('click', async () => {
+            const btn = $('btnExportRevisi');
+            const teksAsli = btn.textContent;
+
+            if (!listRevisi.length) {
+                alert('Belum ada data revisi.\n\nRevisi otomatis tercatat kalau tanggal & nama toko ' +
+                      'yang sama diinput ulang, lalu diisi keterangannya.');
+                return;
+            }
+            if (typeof ExcelJS === 'undefined') {
+                alert('Library Excel belum termuat. Periksa koneksi internet lalu muat ulang halaman.');
+                return;
+            }
+
+            const tahun = parseInt(inputTahun.value, 10) || new Date().getFullYear();
+            btn.disabled = true;
+            btn.textContent = 'Menyiapkan...';
+
+            try {
+                const { wb, jumlah } = buatWorkbookRevisi(tahun);
+                const buffer = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Rekap_Revisi_' + tahun + '.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+                alert('File Rekap Revisi tahun ' + tahun + ' berisi ' + jumlah + ' revisi.');
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan saat membuat file Rekap Revisi: ' + (err.message || err));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = teksAsli;
+            }
+        });
+
         // ====== MULAI ======
         renderPreview();
+        renderRevisi();
+        periksaRevisi();
         muatDataToko(false);
 
         // Debug/uji dari console browser (tidak dipakai aplikasi sehari-hari).
         window.rekaporder = {
             get masterToko() { return masterToko; },
             get listDataRekap() { return listDataRekap; },
+            get listRevisi() { return listRevisi; },
             setMasterToko(list) {
                 masterToko = buangDuplikat(list.map(t => ({
                     nama_toko: t.nama_toko || t.nama || '',
@@ -1821,11 +2164,28 @@ notify pgrst, 'reload schema';
                     nama_toko: t.nama_toko,
                     cabang: t.cabang || '',
                     regional: t.regional || '',
-                    nominal: Number(t.nominal) || 0
+                    nominal: Number(t.nominal) || 0,
+                    revisi: t.revisi || '',
+                    jumlah_revisi: Number(t.jumlah_revisi) || 0
                 }));
                 renderPreview();
             },
+            setRevisi(list) {
+                listRevisi = list.map(t => ({
+                    tanggal: t.tanggal,
+                    nama_toko: t.nama_toko,
+                    cabang: t.cabang || '',
+                    regional: t.regional || '',
+                    nominal_lama: Number(t.nominal_lama) || 0,
+                    nominal_baru: Number(t.nominal_baru) || 0,
+                    keterangan: t.keterangan || '',
+                    waktu: t.waktu || ''
+                }));
+                renderPreview();
+                renderRevisi();
+            },
             buatWorkbookRekap,
+            buatWorkbookRevisi,
             simpanTokoBaru,
             kelompokkanToko,
             resolveToko,
