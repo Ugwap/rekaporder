@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rekap Order Bulanan - Villa Parfum</title>
+    <meta name="description" content="Rekap order bulanan Villa Parfum: input transaksi per toko, revisi, dan export Excel 12 bulan.">
+    <meta name="theme-color" content="#16a085">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Rekap Order">
     <!-- ExcelJS: membuat file Excel lengkap dengan style, merge, dan gambar -->
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <!-- Supabase Client -->
@@ -245,6 +252,34 @@
             color: #065f46;
             font-weight: 700;
         }
+        /* Tablet & desktop: formulir di kiri, preview/export di kanan. */
+        @media (min-width: 900px) {
+            body { padding: 24px; }
+            .container { max-width: 1180px; }
+            .layout {
+                display: grid;
+                grid-template-columns: 390px minmax(0, 1fr);
+                gap: 18px;
+                align-items: start;
+            }
+            .col-left, .col-right {
+                display: flex;
+                flex-direction: column;
+                gap: 18px;
+                min-width: 0;
+            }
+            .col-left .card,
+            .col-right .card { margin-bottom: 0; }
+            .table-responsive { max-height: 520px; }
+            header { margin-bottom: 22px; }
+            header h2 { font-size: 1.7rem; }
+        }
+
+        @media (min-width: 1400px) {
+            .container { max-width: 1320px; }
+            .layout { grid-template-columns: 420px minmax(0, 1fr); }
+        }
+
         @media (max-width: 480px) {
             body { padding: 10px; }
             .card { padding: 13px; }
@@ -262,9 +297,11 @@
 
         <div id="dbBanner" class="banner" hidden></div>
 
-        <!-- 1. Input utama: tanggal -> toko -> cabang -> nominal -->
-        <div class="card">
-            <h3>1. Input Rekap</h3>
+        <div class="layout">
+        <div class="col-left">
+        <!-- Input utama: tanggal -> toko -> cabang -> nominal -->
+        <div class="card card-input">
+            <h3>Input Rekap</h3>
 
             <div class="form-group">
                 <label for="inputTanggal">Tanggal <span class="req">*</span></label>
@@ -306,9 +343,9 @@
             <button type="button" id="btnTambah" class="btn btn-success">+ Tambah ke Daftar</button>
         </div>
 
-        <!-- 2. Tambah toko baru langsung ke database -->
-        <div class="card">
-            <h3>2. Input Toko Baru</h3>
+        <!-- Tambah toko baru langsung ke database -->
+        <div class="card card-toko">
+            <h3>Input Toko Baru</h3>
 
             <div class="form-group">
                 <label for="tokoBaruNama">Nama Toko <span class="req">*</span></label>
@@ -336,9 +373,9 @@
             <button type="button" id="btnMuatToko" class="btn btn-ghost">↻ Muat ulang data toko dari Supabase</button>
         </div>
 
-        <!-- 3. Periode rekap -->
-        <div class="card">
-            <h3>3. Periode Rekap</h3>
+        <!-- Periode rekap -->
+        <div class="card card-periode">
+            <h3>Periode Rekap</h3>
             <div class="form-group">
                 <label for="inputTahun">Tahun Rekap:</label>
                 <input type="number" id="inputTahun" min="2000" max="2100" step="1">
@@ -347,10 +384,12 @@
                 Hasil export berisi <b>12 sheet</b> (JANUARI sampai DESEMBER) untuk tahun di atas.
             </small>
         </div>
+        </div>
 
-        <!-- 4. Preview -->
-        <div class="card">
-            <h3>4. Preview Data Tersimpan</h3>
+        <div class="col-right">
+        <!-- Preview -->
+        <div class="card card-preview">
+            <h3>Preview Data Tersimpan</h3>
             <div class="table-responsive">
                 <table id="tabelPreview">
                     <thead>
@@ -377,9 +416,9 @@
             <button type="button" id="btnReset" class="btn btn-ghost">Kosongkan Daftar</button>
         </div>
 
-        <!-- 5. Daftar revisi -->
-        <div class="card">
-            <h3>5. Daftar Revisi</h3>
+        <!-- Daftar revisi -->
+        <div class="card card-revisi">
+            <h3>Daftar Revisi</h3>
             <div class="table-responsive">
                 <table id="tabelRevisi">
                     <thead>
@@ -397,6 +436,8 @@
             <small class="hint">
                 Isinya otomatis sama dengan sheet <b>REKAP REVISI</b> di file export.
             </small>
+        </div>
+        </div>
         </div>
     </div>
 

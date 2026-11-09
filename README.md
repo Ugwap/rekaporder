@@ -10,7 +10,7 @@ ke file Excel 12 bulan (satu sheet per bulan). Semua kode aplikasi ada di dalam
 
 ## Alur pemakaian
 
-1. **Pilih tanggal** transaksi di bagian 1.
+1. **Pilih tanggal** transaksi di bagian **Input Rekap**.
 2. **Ketik nama toko.** Daftar saran muncul dari database. Nama yang salah
    ketik otomatis dibetulkan saat Tab/klik keluar (mis. `anyr` → `Anyer - 2`).
    Nama yang masih ambigu (mis. `a` atau `cilegon`) tidak dipaksa, tinggal
@@ -35,7 +35,7 @@ Alurnya:
    ke 150rb”*).
 2. Klik **+ Tambah ke Daftar** lagi.
 3. Nominal lama **ditimpa** dengan nominal baru, dan revisi tercatat di
-   **5. Daftar Revisi**.
+   **Daftar Revisi**.
 
 Pengecekan hanya berlaku untuk kombinasi **tanggal + nama toko** yang persis
 sama. Tanggal beda atau toko beda tetap masuk sebagai data baru. Kalau satu
@@ -44,7 +44,7 @@ export tetap sinkron.
 
 ### Input Toko Baru
 
-Bagian **2. Input Toko Baru** dipakai untuk menambah toko langsung ke database,
+Bagian **Input Toko Baru** dipakai untuk menambah toko langsung ke database,
 tanpa upload CSV:
 
 - **Nama Toko** (wajib)
@@ -175,6 +175,17 @@ Tidak perlu build tool. Semua dependensi dimuat dari CDN:
 
 ---
 
+## Tampilan & PWA
+
+- Di layar lebar (≥900px) formulir tampil di kolom kiri, sedangkan preview dan
+  export di kolom kanan. Di HP tetap satu kolom seperti sebelumnya.
+- `manifest.json` membuat aplikasi bisa dipasang ke home screen (Add to Home
+  Screen) dan berjalan dalam mode `standalone`.
+- Ikon aplikasi memakai `icon-192.png` dan `icon-512.png`, dengan warna tema
+  `#16a085` (hijau Villa Parfum).
+
+---
+
 ## Deploy
 
 Repo ini sudah terhubung ke GitHub Pages:
@@ -190,6 +201,9 @@ Setiap push ke `main` akan otomatis men-deploy ulang.
 ## Struktur file
 
 ```
-index.html   # seluruh aplikasi (UI, logika, logo, data cadangan 202 toko)
-README.md    # dokumentasi ini
+index.html       # seluruh aplikasi (UI, logika, logo, data cadangan 202 toko)
+manifest.json    # manifest PWA (nama, ikon, warna, mode standalone)
+icon-192.png     # ikon PWA 192x192
+icon-512.png     # ikon PWA 512x512
+README.md        # dokumentasi ini
 ```
