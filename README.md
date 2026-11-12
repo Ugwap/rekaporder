@@ -8,6 +8,15 @@ ke file Excel 12 bulan (satu sheet per bulan). Semua kode aplikasi ada di dalam
 
 ---
 
+## Tema terang & gelap
+
+Tombol bulat di pojok kanan atas mengganti tampilan antara mode terang dan
+gelap. Pilihan disimpan di `localStorage` (kunci `rekaporder-tema`), jadi tetap
+dipakai saat halaman dibuka lagi. Kalau pengguna belum pernah memilih, tampilan
+mengikuti tema sistem (terang/gelap).
+
+---
+
 ## Alur pemakaian
 
 1. **Pilih tanggal** transaksi di bagian **Input Rekap**.
