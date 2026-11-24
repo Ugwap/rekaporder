@@ -311,6 +311,60 @@
         .btn-danger:hover:not(:disabled) { background-color: #c0392b; }
         .btn-ghost { background: var(--card); color: var(--teks-2); border: 1px solid var(--garis); }
         .btn-ghost:hover:not(:disabled) { background: var(--soft); }
+
+        .preview-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .preview-search {
+            flex: 1 1 180px;
+            min-width: 150px;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.84rem;
+            background: var(--field);
+            color: var(--teks);
+        }
+        .preview-search:focus {
+            outline: none;
+            border-color: var(--hijau);
+            box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.15);
+        }
+        .sort-group {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+        .btn-sort {
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--soft);
+            color: var(--teks-2);
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .btn-sort:hover {
+            background: var(--soft-2);
+            color: var(--teks);
+        }
+        .btn-sort.active {
+            background: var(--hijau);
+            border-color: var(--hijau);
+            color: #ffffff;
+        }
+        html[data-theme="dark"] .btn-sort.active {
+            color: #0f172a;
+        }
+
         .table-responsive { overflow-x: auto; max-height: 360px; overflow-y: auto; border: 1px solid var(--garis); border-radius: 8px; }
         table { width: 100%; border-collapse: collapse; }
         th, td {
@@ -621,6 +675,17 @@
         <!-- Preview -->
         <div class="card card-preview">
             <h3>Preview Data Tersimpan</h3>
+
+            <div class="preview-toolbar" role="group" aria-label="Urutkan dan cari data preview">
+                <input type="search" id="cariPreview" class="preview-search" autocomplete="off" spellcheck="false"
+                       placeholder="Cari nama toko, regional, cabang...">
+                <div class="sort-group">
+                    <button type="button" id="btnSortDefault" class="btn-sort active" data-sort="default">Urutan Input</button>
+                    <button type="button" id="btnSortToko" class="btn-sort" data-sort="toko">Nama Toko ↑↓</button>
+                    <button type="button" id="btnSortRegional" class="btn-sort" data-sort="regional">Regional ↑↓</button>
+                </div>
+            </div>
+
             <div class="table-responsive">
                 <table id="tabelPreview">
                     <thead>
@@ -744,6 +809,11 @@
         let isSheetConnected = false;
         let isSyncing = false;
         let lastSyncTime = '';
+
+        // State sort & filter preview
+        let sortField = 'default';   // 'default' | 'toko' | 'regional'
+        let sortDir = 'asc';         // 'asc' | 'desc'
+        let filterPreviewText = '';
 
         // State modal edit
         let editingIndex = null;
@@ -1926,7 +1996,97 @@
             await sinkronkanKeSheet('Penghapusan ' + item.nama_toko + ' tersinkron');
         });
 
-        // ====== PREVIEW ======
+        // ====== SORT, FILTER & PREVIEW ======
+        function ambilNilaiRegionalSort(item) {
+            const raw = clean(item.regional || item.cabang || 'LAINNYA').toUpperCase();
+            return raw.indexOf('REGIONAL ') === 0 ? raw : 'REGIONAL ' + raw;
+        }
+
+        function getFilteredAndSortedPreview() {
+            const q = normalize(filterPreviewText);
+            const filtered = !q
+                ? listDataRekap.slice()
+                : listDataRekap.filter(item => {
+                    const gabung = normalize([
+                        item.tanggal,
+                        item.nama_toko,
+                        item.cabang,
+                        item.regional,
+                        item.revisi
+                    ].filter(Boolean).join(' '));
+                    return gabung.includes(q);
+                });
+
+            if (sortField === 'default') {
+                return filtered;
+            }
+
+            const mult = sortDir === 'desc' ? -1 : 1;
+            return filtered.sort((a, b) => {
+                if (sortField === 'toko') {
+                    const cmpToko = String(a.nama_toko || '').localeCompare(
+                        String(b.nama_toko || ''), 'id', { sensitivity: 'base' }
+                    );
+                    if (cmpToko !== 0) return cmpToko * mult;
+                    return String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
+                }
+
+                if (sortField === 'regional') {
+                    const regA = ambilNilaiRegionalSort(a);
+                    const regB = ambilNilaiRegionalSort(b);
+                    const cmpReg = regA.localeCompare(regB, 'id', { sensitivity: 'base' });
+                    if (cmpReg !== 0) return cmpReg * mult;
+                    return String(a.nama_toko || '').localeCompare(
+                        String(b.nama_toko || ''), 'id', { sensitivity: 'base' }
+                    );
+                }
+
+                return 0;
+            });
+        }
+
+        function perbaruiTombolSortUI() {
+            const btnDefault = $('btnSortDefault');
+            const btnToko = $('btnSortToko');
+            const btnRegional = $('btnSortRegional');
+
+            const panah = sortDir === 'asc' ? '↑' : '↓';
+            if (btnDefault) btnDefault.classList.toggle('active', sortField === 'default');
+            if (btnToko) {
+                btnToko.classList.toggle('active', sortField === 'toko');
+                btnToko.textContent = sortField === 'toko' ? 'Nama Toko ' + panah : 'Nama Toko ↑↓';
+            }
+            if (btnRegional) {
+                btnRegional.classList.toggle('active', sortField === 'regional');
+                btnRegional.textContent = sortField === 'regional' ? 'Regional ' + panah : 'Regional ↑↓';
+            }
+        }
+
+        function terapkanSort(field) {
+            if (field === 'default') {
+                sortField = 'default';
+                sortDir = 'asc';
+            } else if (sortField === field) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortField = field;
+                sortDir = 'asc';
+            }
+            perbaruiTombolSortUI();
+            renderPreview();
+        }
+
+        if ($('btnSortDefault')) $('btnSortDefault').addEventListener('click', () => terapkanSort('default'));
+        if ($('btnSortToko')) $('btnSortToko').addEventListener('click', () => terapkanSort('toko'));
+        if ($('btnSortRegional')) $('btnSortRegional').addEventListener('click', () => terapkanSort('regional'));
+
+        if ($('cariPreview')) {
+            $('cariPreview').addEventListener('input', (ev) => {
+                filterPreviewText = ev.target.value || '';
+                renderPreview();
+            });
+        }
+
         function renderPreview() {
             const tbody = document.querySelector('#tabelPreview tbody');
             tbody.innerHTML = '';
@@ -1937,11 +2097,20 @@
                 return;
             }
 
-            listDataRekap.forEach((item, index) => {
+            const rows = getFilteredAndSortedPreview();
+            if (!rows.length) {
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Tidak ada data yang cocok dengan pencarian.</td></tr>';
+                $('infoTotal').textContent = '0 dari ' + listDataRekap.length + ' data tampil • Rp 0';
+                return;
+            }
+
+            rows.forEach((item) => {
+                const realIndex = listDataRekap.indexOf(item);
                 const tr = document.createElement('tr');
                 const cabangTampil = item.cabang || item.nama_toko;
-                const regional = item.regional
-                    ? '<span class="badge">' + esc(item.regional) + '</span>' : '';
+                const regionalLabel = item.regional || item.cabang || '';
+                const regional = regionalLabel
+                    ? '<span class="badge">' + esc(regionalLabel) + '</span>' : '';
                 const selRevisi = item.revisi
                     ? '<span class="badge badge-amber">Revisi' +
                       (item.jumlah_revisi > 1 ? ' ×' + item.jumlah_revisi : '') + '</span><br>' +
@@ -1953,13 +2122,16 @@
                     <td>${esc(cabangTampil)}</td>
                     <td>${rupiah(item.nominal)}</td>
                     <td>${selRevisi}</td>
-                    <td class="row-actions"><button type="button" class="btn-edit-row" onclick="bukaModalEdit(${index})">Edit</button></td>
+                    <td class="row-actions"><button type="button" class="btn-edit-row" onclick="bukaModalEdit(${realIndex})">Edit</button></td>
                 `;
                 tbody.appendChild(tr);
             });
 
-            const total = listDataRekap.reduce((s, it) => s + Number(it.nominal || 0), 0);
-            $('infoTotal').textContent = listDataRekap.length + ' data • ' + rupiah(total) +
+            const total = rows.reduce((s, it) => s + Number(it.nominal || 0), 0);
+            const labelJumlah = filterPreviewText.trim()
+                ? rows.length + '/' + listDataRekap.length + ' data'
+                : rows.length + ' data';
+            $('infoTotal').textContent = labelJumlah + ' • ' + rupiah(total) +
                 (listRevisi.length ? ' • ' + listRevisi.length + ' revisi' : '') +
                 (lastSyncTime ? ' • Sync ' + lastSyncTime : '');
         }
@@ -2647,6 +2819,7 @@
         });
 
         // ====== MULAI ======
+        perbaruiTombolSortUI();
         renderPreview();
         renderRevisi();
         periksaRevisi();
