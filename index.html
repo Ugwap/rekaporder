@@ -959,6 +959,26 @@
             return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
         }
 
+        function tambahHariIso(iso, jumlahHari) {
+            const bagian = String(iso || '').split('-').map(Number);
+            if (bagian.length !== 3 || bagian.some(isNaN)) return String(iso || '');
+            const dt = new Date(Date.UTC(bagian[0], bagian[1] - 1, bagian[2] + (jumlahHari || 1)));
+            const y = dt.getUTCFullYear();
+            const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(dt.getUTCDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        }
+
+        function cariTanggalBerikutnyaTersedia(namaToko, tanggalMulai, abaikanIndex) {
+            let kandidat = tambahHariIso(tanggalMulai, 1);
+            let guard = 0;
+            while (cariDuplikatTanggal(namaToko, kandidat, abaikanIndex) >= 0 && guard < 366) {
+                kandidat = tambahHariIso(kandidat, 1);
+                guard++;
+            }
+            return kandidat;
+        }
+
         function rupiah(n) {
             return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
         }
@@ -1035,9 +1055,11 @@
             reqKeterangan.hidden = !adaDuplikat;
 
             if (adaDuplikat) {
-                inputKeterangan.placeholder = 'Wajib: alasan data tanggal ini diganti';
+                const tglBerikutnya = cariTanggalBerikutnyaTersedia(nama, tanggal, -1);
+                inputKeterangan.placeholder = 'Wajib: alasan revisi (data lama digeser ke ' + tanggalTampil(tglBerikutnya) + ')';
                 infoKeterangan.textContent = '⚠ Toko ini sudah diinput pada ' + tanggalTampil(tanggal) +
-                    '. Isi keterangan revisi — data lama akan ditimpa.';
+                    '. Isi keterangan revisi — data lama tidak ditimpa, melainkan diubah ke tanggal berikutnya (' +
+                    tanggalTampil(tglBerikutnya) + ').';
                 infoKeterangan.className = 'hint err';
             } else {
                 inputKeterangan.placeholder = 'Opsional (wajib jika tanggal & toko sudah ada)';
@@ -1682,37 +1704,52 @@
             }
 
             if (idxLama >= 0) {
+                const tglBerikutnya = cariTanggalBerikutnyaTersedia(t.nama_toko, tanggal, -1);
                 if (!keterangan) {
                     reqKeterangan.hidden = false;
                     inputKeterangan.classList.add('invalid');
                     infoKeterangan.textContent = '⚠ Wajib diisi. Toko "' + t.nama_toko +
-                        '" sudah diinput pada ' + tanggalTampil(tanggal) + '.';
+                        '" sudah diinput pada ' + tanggalTampil(tanggal) +
+                        ' (data lama akan dipindah ke ' + tanggalTampil(tglBerikutnya) + ').';
                     infoKeterangan.className = 'hint err';
                     inputKeterangan.focus();
                     alert('Toko "' + t.nama_toko + '" sudah diinput pada ' + tanggalTampil(tanggal) + '.\n\n' +
                           'Isi "Keterangan Revisi" dulu, lalu klik Tambah lagi.\n' +
-                          'Data lama akan ditimpa dengan nominal yang baru.');
+                          'Data lama tidak ditimpa, melainkan diubah ke tanggal berikutnya (' +
+                          tanggalTampil(tglBerikutnya) + ').');
                     return;
                 }
 
                 const lama = listDataRekap[idxLama];
                 const nominalLama = parseNominal(lama.nominal);
 
-                if (noSuratJalan) lama.no_surat_jalan = noSuratJalan;
-                lama.cabang = t.cabang || '';
-                lama.regional = t.regional || '';
-                lama.nominal = nominal;
+                // Ubah data lama ke tanggal berikutnya (tidak menimpa/menghapus data lama).
+                lama.tanggal = tglBerikutnya;
+                lama.cabang = t.cabang || lama.cabang || '';
+                lama.regional = t.regional || lama.regional || '';
                 lama.revisi = keterangan;
                 lama.jumlah_revisi = (lama.jumlah_revisi || 0) + 1;
 
-                listRevisi.push({
+                // Tambahkan entri baru pada tanggal berikutnya / entri revisi tercatat.
+                listDataRekap.push({
                     tanggal: tanggal,
+                    no_surat_jalan: noSuratJalan,
+                    nama_toko: t.nama_toko,
+                    cabang: t.cabang || '',
+                    regional: t.regional || '',
+                    nominal: nominal,
+                    revisi: keterangan,
+                    jumlah_revisi: 1
+                });
+
+                listRevisi.push({
+                    tanggal: tglBerikutnya,
                     nama_toko: t.nama_toko,
                     cabang: t.cabang || '',
                     regional: t.regional || '',
                     nominal_lama: nominalLama,
                     nominal_baru: nominal,
-                    keterangan: keterangan,
+                    keterangan: keterangan + ' (digeser dari ' + tanggalTampil(tanggal) + ' ke ' + tanggalTampil(tglBerikutnya) + ')',
                     waktu: new Date().toISOString()
                 });
 
@@ -1720,8 +1757,9 @@
                 renderRevisi();
                 resetFormInput();
 
-                const pesanRev = 'Revisi tersimpan — ' + t.nama_toko + ', ' + tanggalTampil(tanggal) +
-                    ' (Rp ' + nominalLama.toLocaleString('id-ID') + ' → Rp ' + nominal.toLocaleString('id-ID') + ')';
+                const pesanRev = 'Revisi tersimpan — ' + t.nama_toko + ': data lama digeser ke ' +
+                    tanggalTampil(tglBerikutnya) + ' (Rp ' + nominalLama.toLocaleString('id-ID') +
+                    ' → Rp ' + nominal.toLocaleString('id-ID') + ')';
                 infoToko.textContent = '⏳ Menyinkronkan revisi ke Google Sheets...';
                 infoToko.className = 'hint info';
 
