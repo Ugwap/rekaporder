@@ -252,6 +252,7 @@
         }
         .hint.ok { color: var(--hijau-tua); font-weight: 600; }
         .hint.err { color: var(--merah); font-weight: 600; }
+        .hint.warn { color: var(--warn-teks); font-weight: 600; }
         .hint.info { color: var(--info-teks); font-weight: 600; }
         .hint code {
             background: var(--soft-2);
@@ -593,7 +594,7 @@
                 <label for="inputSuratJalan">Nomor Surat Jalan</label>
                 <input type="text" id="inputSuratJalan" autocomplete="off" spellcheck="false" maxlength="80"
                        placeholder="Contoh: SJ/VP/2026/11/001">
-                <small class="hint">
+                <small id="infoSuratJalan" class="hint" role="status" aria-live="polite">
                     Tersimpan ke sheet <code>REKAP</code> di Google Sheets; tidak masuk ke file export Excel.
                 </small>
             </div>
@@ -764,6 +765,9 @@
                 <label for="editSuratJalan">Nomor Surat Jalan</label>
                 <input type="text" id="editSuratJalan" autocomplete="off" spellcheck="false" maxlength="80"
                        placeholder="Contoh: SJ/VP/2026/11/001">
+                <small id="editInfoSuratJalan" class="hint" role="status" aria-live="polite">
+                    Nomor surat jalan tersimpan di sheet <code>REKAP</code>.
+                </small>
             </div>
 
             <div class="form-group">
@@ -846,6 +850,7 @@
         const elWaktuSync = $('waktuSinkronRekap');
         const inputTanggal = $('inputTanggal');
         const inputSuratJalan = $('inputSuratJalan');
+        const infoSuratJalan = $('infoSuratJalan');
         const inputToko = $('inputToko');
         const inputCabang = $('inputCabang');
         const inputNominal = $('inputNominal');
@@ -861,6 +866,7 @@
         const modalEdit = $('modalEdit');
         const editTanggal = $('editTanggal');
         const editSuratJalan = $('editSuratJalan');
+        const editInfoSuratJalan = $('editInfoSuratJalan');
         const editToko = $('editToko');
         const editCabang = $('editCabang');
         const editNominal = $('editNominal');
@@ -971,6 +977,55 @@
                 it.tanggal === tanggal &&
                 normalize(it.nama_toko) === kunciNama);
         }
+
+        // ====== NOTICE NOMOR SURAT JALAN SUDAH PERNAH DIINPUT ======
+        function cariDuplikatSuratJalan(noSuratJalan, abaikanIndex) {
+            const kunci = normalize(noSuratJalan);
+            if (!kunci) return -1;
+            return listDataRekap.findIndex((it, idx) =>
+                idx !== abaikanIndex &&
+                normalize(it.no_surat_jalan) === kunci);
+        }
+
+        function periksaSuratJalan(inputEl, hintEl, abaikanIndex, defaultHtml) {
+            if (!inputEl || !hintEl) return null;
+            const nilai = clean(inputEl.value);
+            if (!nilai) {
+                inputEl.classList.remove('invalid');
+                if (defaultHtml) {
+                    hintEl.innerHTML = defaultHtml;
+                } else {
+                    hintEl.textContent = '';
+                }
+                hintEl.className = 'hint';
+                return null;
+            }
+
+            const idxSama = cariDuplikatSuratJalan(nilai, abaikanIndex);
+            if (idxSama >= 0) {
+                const cocok = listDataRekap[idxSama];
+                inputEl.classList.add('invalid');
+                hintEl.textContent = '⚠ Notice: No. Surat Jalan "' + nilai + '" sudah pernah diinput' +
+                    (cocok.nama_toko ? ' untuk ' + cocok.nama_toko : '') +
+                    (cocok.tanggal ? ' (' + tanggalTampil(cocok.tanggal) + ')' : '') + '.';
+                hintEl.className = 'hint warn';
+                return cocok;
+            }
+
+            inputEl.classList.remove('invalid');
+            if (defaultHtml) {
+                hintEl.innerHTML = defaultHtml;
+            } else {
+                hintEl.textContent = '';
+            }
+            hintEl.className = 'hint';
+            return null;
+        }
+
+        const DEFAULT_HINT_SJ_UTAMA =
+            'Tersimpan ke sheet <code>REKAP</code> di Google Sheets; tidak masuk ke file export Excel.';
+        const DEFAULT_HINT_SJ_EDIT =
+            'Nomor surat jalan tersimpan di sheet <code>REKAP</code>.';
 
         function periksaRevisi() {
             const tanggal = inputTanggal.value;
@@ -1251,6 +1306,7 @@
                 renderPreview();
                 renderRevisi();
                 periksaRevisi();
+                periksaSuratJalan(inputSuratJalan, infoSuratJalan, -1, DEFAULT_HINT_SJ_UTAMA);
 
                 if (inputToko.value.trim()) {
                     terapkanKecocokan(resolveToko(inputToko.value), false);
@@ -1540,7 +1596,14 @@
 
         // ====== TAMBAH DATA ======
         function resetFormInput() {
-            if (inputSuratJalan) inputSuratJalan.value = '';
+            if (inputSuratJalan) {
+                inputSuratJalan.value = '';
+                inputSuratJalan.classList.remove('invalid');
+            }
+            if (infoSuratJalan) {
+                infoSuratJalan.innerHTML = DEFAULT_HINT_SJ_UTAMA;
+                infoSuratJalan.className = 'hint';
+            }
             inputToko.value = '';
             inputCabang.value = '';
             inputCabang.placeholder = 'Terisi otomatis setelah toko dipilih';
@@ -1601,6 +1664,22 @@
 
             const keterangan = clean(inputKeterangan.value);
             const idxLama = cariDuplikatTanggal(t.nama_toko, tanggal, -1);
+
+            if (noSuratJalan && idxLama < 0) {
+                const kembarSj = periksaSuratJalan(inputSuratJalan, infoSuratJalan, -1, DEFAULT_HINT_SJ_UTAMA);
+                if (kembarSj) {
+                    const lanjut = confirm(
+                        'Notice: Nomor Surat Jalan "' + noSuratJalan + '" sudah pernah diinput' +
+                        (kembarSj.nama_toko ? ' untuk ' + kembarSj.nama_toko : '') +
+                        (kembarSj.tanggal ? ' pada ' + tanggalTampil(kembarSj.tanggal) : '') + '.\n\n' +
+                        'Tetap tambahkan data ini?'
+                    );
+                    if (!lanjut) {
+                        inputSuratJalan.focus();
+                        return;
+                    }
+                }
+            }
 
             if (idxLama >= 0) {
                 if (!keterangan) {
@@ -1702,6 +1781,10 @@
                 infoToko.textContent = '⚠ Data ada di daftar, tetapi gagal sinkron ke Google Sheets.';
                 infoToko.className = 'hint err';
             }
+        });
+
+        inputSuratJalan.addEventListener('input', () => {
+            periksaSuratJalan(inputSuratJalan, infoSuratJalan, -1, DEFAULT_HINT_SJ_UTAMA);
         });
 
         inputSuratJalan.addEventListener('keydown', (ev) => {
@@ -1836,6 +1919,7 @@
             editingIndex = index;
             editTanggal.value = item.tanggal || hariIni();
             if (editSuratJalan) editSuratJalan.value = item.no_surat_jalan || '';
+            periksaSuratJalan(editSuratJalan, editInfoSuratJalan, index, DEFAULT_HINT_SJ_EDIT);
             editToko.value = item.nama_toko || '';
             editCabang.value = item.cabang || '';
             editNominal.value = String(item.nominal || '');
@@ -1876,6 +1960,10 @@
             editingIndex = null;
             editSelectedToko = null;
         }
+
+        editSuratJalan.addEventListener('input', () => {
+            periksaSuratJalan(editSuratJalan, editInfoSuratJalan, editingIndex, DEFAULT_HINT_SJ_EDIT);
+        });
 
         editToko.addEventListener('input', () => {
             editSelectedToko = null;
@@ -2939,6 +3027,7 @@
                     jumlah_revisi: parseNominal(t.jumlah_revisi)
                 }));
                 renderPreview();
+                periksaSuratJalan(inputSuratJalan, infoSuratJalan, -1, DEFAULT_HINT_SJ_UTAMA);
             },
             setRevisi(list) {
                 listRevisi = list.map(t => ({
