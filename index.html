@@ -336,6 +336,52 @@
             border-color: var(--hijau);
             box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.15);
         }
+        .preview-month {
+            flex: 0 1 160px;
+            min-width: 140px;
+            padding: 7px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.84rem;
+            font-weight: 600;
+            background: var(--field);
+            color: var(--teks);
+            cursor: pointer;
+        }
+        .preview-month:focus {
+            outline: none;
+            border-color: var(--hijau);
+            box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.15);
+        }
+        .export-periode {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .export-periode label {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--teks-2);
+            white-space: nowrap;
+        }
+        .export-periode select {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.86rem;
+            font-weight: 600;
+            background: var(--field);
+            color: var(--teks);
+            cursor: pointer;
+        }
+        .export-periode select:focus {
+            outline: none;
+            border-color: var(--hijau);
+            box-shadow: 0 0 0 3px rgba(22, 160, 133, 0.15);
+        }
         .sort-group {
             display: inline-flex;
             flex-wrap: wrap;
@@ -676,7 +722,7 @@
                 <input type="number" id="inputTahun" min="2000" max="2100" step="1">
             </div>
             <small id="infoPeriodeExport" class="hint">
-                Export otomatis membuat <b>1 sheet</b> sesuai bulan pada kolom <b>Tanggal</b> di atas.
+                Download memakai <b>Bulan</b> di atas tombol Download dan <b>Tahun</b> di sini.
             </small>
         </div>
         </div>
@@ -687,6 +733,9 @@
             <h3>Preview Data Tersimpan</h3>
 
             <div class="preview-toolbar" role="group" aria-label="Urutkan dan cari data preview">
+                <select id="filterBulanPreview" class="preview-month" aria-label="Tampilkan data per bulan">
+                    <option value="">Semua Bulan</option>
+                </select>
                 <input type="search" id="cariPreview" class="preview-search" autocomplete="off" spellcheck="false"
                        placeholder="Cari no. surat jalan, toko, regional, cabang...">
                 <div class="sort-group">
@@ -717,6 +766,10 @@
             <div class="total-box">
                 <span>Total data</span>
                 <span id="infoTotal">0 data • Rp 0</span>
+            </div>
+            <div class="export-periode">
+                <label for="inputBulan">Bulan download:</label>
+                <select id="inputBulan" aria-label="Pilih bulan untuk download rekap"></select>
             </div>
             <button type="button" id="btnExport" class="btn btn-primary">Download Rekap Order (Excel Bulanan)</button>
             <button type="button" id="btnExportRevisi" class="btn btn-amber">Download Rekap Revisi</button>
@@ -834,6 +887,7 @@
         let sortField = 'default';   // 'default' | 'toko' | 'regional'
         let sortDir = 'asc';         // 'asc' | 'desc'
         let filterPreviewText = '';
+        let filterBulanPreviewIndex = -1;   // -1 = semua bulan, 0-11 = Januari-Desember
 
         // State modal edit
         let editingIndex = null;
@@ -862,6 +916,8 @@
         const groupRegional = $('groupRegional');
         const inputRegional = $('inputRegional');
         const inputTahun = $('inputTahun');
+        const inputBulan = $('inputBulan');
+        const filterBulanPreview = $('filterBulanPreview');
 
         const modalEdit = $('modalEdit');
         const editTanggal = $('editTanggal');
@@ -2217,19 +2273,24 @@
 
         function getFilteredAndSortedPreview() {
             const q = normalize(filterPreviewText);
-            const filtered = !q
-                ? listDataRekap.slice()
-                : listDataRekap.filter(item => {
-                    const gabung = normalize([
-                        item.tanggal,
-                        item.no_surat_jalan,
-                        item.nama_toko,
-                        item.cabang,
-                        item.regional,
-                        item.revisi
-                    ].filter(Boolean).join(' '));
-                    return gabung.includes(q);
-                });
+            const bulanFilter = filterBulanPreviewIndex;
+            const filtered = listDataRekap.filter(item => {
+                if (bulanFilter >= 0) {
+                    const bagian = String(item.tanggal || '').split('-').map(Number);
+                    if (bagian.length !== 3 || bagian.some(isNaN)) return false;
+                    if ((bagian[1] - 1) !== bulanFilter) return false;
+                }
+                if (!q) return true;
+                const gabung = normalize([
+                    item.tanggal,
+                    item.no_surat_jalan,
+                    item.nama_toko,
+                    item.cabang,
+                    item.regional,
+                    item.revisi
+                ].filter(Boolean).join(' '));
+                return gabung.includes(q);
+            });
 
             if (sortField === 'default') {
                 return filtered;
@@ -2301,6 +2362,14 @@
             });
         }
 
+        if ($('filterBulanPreview')) {
+            $('filterBulanPreview').addEventListener('change', (ev) => {
+                const nilai = parseInt(ev.target.value, 10);
+                filterBulanPreviewIndex = (nilai >= 0 && nilai <= 11) ? nilai : -1;
+                renderPreview();
+            });
+        }
+
         function renderPreview() {
             const tbody = document.querySelector('#tabelPreview tbody');
             tbody.innerHTML = '';
@@ -2308,13 +2377,22 @@
             if (!listDataRekap.length) {
                 tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Belum ada data ditambahkan.</td></tr>';
                 $('infoTotal').textContent = '0 data • Rp 0';
+                perbaruiInfoPeriodeExport();
                 return;
             }
 
             const rows = getFilteredAndSortedPreview();
             if (!rows.length) {
-                tbody.innerHTML = '<tr class="empty-row"><td colspan="7">Tidak ada data yang cocok dengan pencarian.</td></tr>';
+                const namaBulanFilter = filterBulanPreviewIndex >= 0
+                    ? NAMA_BULAN[filterBulanPreviewIndex] : '';
+                const pesanKosong = namaBulanFilter && filterPreviewText.trim()
+                    ? 'Tidak ada data bulan ' + namaBulanFilter + ' yang cocok dengan pencarian.'
+                    : namaBulanFilter
+                        ? 'Tidak ada data pada bulan ' + namaBulanFilter + '.'
+                        : 'Tidak ada data yang cocok dengan pencarian.';
+                tbody.innerHTML = '<tr class="empty-row"><td colspan="7">' + pesanKosong + '</td></tr>';
                 $('infoTotal').textContent = '0 dari ' + listDataRekap.length + ' data tampil • Rp 0';
+                perbaruiInfoPeriodeExport();
                 return;
             }
 
@@ -2344,12 +2422,14 @@
             });
 
             const total = rows.reduce((s, it) => s + parseNominal(it.nominal), 0);
-            const labelJumlah = filterPreviewText.trim()
+            const adaFilter = filterPreviewText.trim() || filterBulanPreviewIndex >= 0;
+            const labelJumlah = adaFilter
                 ? rows.length + '/' + listDataRekap.length + ' data'
                 : rows.length + ' data';
             $('infoTotal').textContent = labelJumlah + ' • ' + rupiah(total) +
                 (listRevisi.length ? ' • ' + listRevisi.length + ' revisi' : '') +
                 (lastSyncTime ? ' • Sync ' + lastSyncTime : '');
+            perbaruiInfoPeriodeExport();
         }
 
         // ====== DAFTAR REVISI ======
@@ -2500,29 +2580,57 @@
 
         inputTanggal.value = hariIni();
 
+        function namaBulanTampil(index) {
+            const nama = NAMA_BULAN[index] || '';
+            return nama ? nama.charAt(0) + nama.slice(1).toLowerCase() : '';
+        }
+
+        function isiPilihanBulan() {
+            const opsi = NAMA_BULAN.map((nama, i) =>
+                '<option value="' + i + '">' + namaBulanTampil(i) + '</option>'
+            ).join('');
+
+            if (inputBulan) inputBulan.innerHTML = opsi;
+
+            if (filterBulanPreview) {
+                filterBulanPreview.innerHTML = '<option value="">Semua Bulan</option>' + opsi;
+            }
+        }
+
         function ambilPeriodeAktif() {
-            const bagian = String(inputTanggal.value || '').split('-').map(Number);
             const tahunDefault = parseInt(inputTahun.value, 10) || new Date().getFullYear();
             const bulanDefault = new Date().getMonth();
+            const bulanPilihan = inputBulan ? parseInt(inputBulan.value, 10) : NaN;
+            const bulanIndex = (bulanPilihan >= 0 && bulanPilihan <= 11) ? bulanPilihan : bulanDefault;
+            return { tahun: tahunDefault, bulanIndex: bulanIndex };
+        }
 
-            if (bagian.length === 3 && !bagian.some(isNaN)) {
-                const th = bagian[0];
-                const bl = bagian[1] - 1;
-                return {
-                    tahun: th,
-                    bulanIndex: bl >= 0 && bl <= 11 ? bl : bulanDefault
-                };
-            }
-            return { tahun: tahunDefault, bulanIndex: bulanDefault };
+        function hitungDataBulan(tahun, bulanIndex) {
+            return listDataRekap.filter(item => {
+                const bagian = String(item.tanggal || '').split('-').map(Number);
+                if (bagian.length !== 3 || bagian.some(isNaN)) return false;
+                return bagian[0] === tahun && (bagian[1] - 1) === bulanIndex;
+            }).length;
+        }
+
+        function perbaruiLabelTombolExport() {
+            const btn = $('btnExport');
+            if (!btn || btn.disabled) return;
+            const { tahun, bulanIndex } = ambilPeriodeAktif();
+            btn.textContent = 'Download Rekap Order (Excel ' +
+                namaBulanTampil(bulanIndex) + ' ' + tahun + ')';
         }
 
         function perbaruiInfoPeriodeExport() {
             const { tahun, bulanIndex } = ambilPeriodeAktif();
-            const namaBulan = NAMA_BULAN[bulanIndex] || '';
+            const namaBulan = namaBulanTampil(bulanIndex);
+            const jumlah = hitungDataBulan(tahun, bulanIndex);
             const el = $('infoPeriodeExport');
             if (el) {
-                el.innerHTML = 'Export membuat <b>1 sheet</b> (<b>' + namaBulan + ' ' + tahun +
-                    '</b>) sesuai tanggal yang dipilih.';
+                el.innerHTML = 'Download membuat <b>1 sheet</b> (<b>' + namaBulan + ' ' + tahun + '</b>) — ' +
+                    (jumlah
+                        ? '<b>' + jumlah + '</b> data siap diexport.'
+                        : 'belum ada data pada bulan ini.');
             }
         }
 
@@ -2531,17 +2639,29 @@
             const d = new Date(inputTanggal.value + 'T00:00:00');
             if (isNaN(d.getTime())) return;
             inputTahun.value = String(d.getFullYear());
+            if (inputBulan) inputBulan.value = String(d.getMonth());
             perbaruiInfoPeriodeExport();
+            perbaruiLabelTombolExport();
         }
+
+        isiPilihanBulan();
         inputTanggal.addEventListener('change', sinkronPeriode);
         inputTanggal.addEventListener('change', periksaRevisi);
         sinkronPeriode();
+
+        if (inputBulan) {
+            inputBulan.addEventListener('change', () => {
+                perbaruiInfoPeriodeExport();
+                perbaruiLabelTombolExport();
+            });
+        }
 
         inputTahun.addEventListener('change', () => {
             const th = parseInt(inputTahun.value, 10);
             if (!th || !inputTanggal.value) return;
             inputTanggal.value = String(th) + inputTanggal.value.slice(4);
             perbaruiInfoPeriodeExport();
+            perbaruiLabelTombolExport();
         });
 
         // ====== EXPORT EXCEL (1 SHEET SESUAI BULAN TANGGAL INPUT) ======
@@ -2840,7 +2960,6 @@
 
         $('btnExport').addEventListener('click', async () => {
             const btn = $('btnExport');
-            const teksAsli = btn.textContent;
 
             if (!listDataRekap.length) {
                 alert('Belum ada data rekap yang dimasukkan!');
@@ -2857,6 +2976,13 @@
 
             const { tahun, bulanIndex } = ambilPeriodeAktif();
             const namaBulan = NAMA_BULAN[bulanIndex];
+            const jumlahBulan = hitungDataBulan(tahun, bulanIndex);
+
+            if (!jumlahBulan) {
+                alert('Belum ada data rekap untuk bulan ' + namaBulan + ' ' + tahun + '.\n\n' +
+                      'Pilih bulan/tahun lain di atas tombol Download, atau input data dulu.');
+                return;
+            }
 
             btn.disabled = true;
             btn.textContent = 'Menyiapkan sheet ' + namaBulan + '...';
@@ -2887,7 +3013,7 @@
                 alert('Terjadi kesalahan saat membuat file Excel: ' + (err.message || err));
             } finally {
                 btn.disabled = false;
-                btn.textContent = teksAsli;
+                perbaruiLabelTombolExport();
             }
         });
 
